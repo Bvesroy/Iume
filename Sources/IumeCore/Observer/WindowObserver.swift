@@ -77,8 +77,7 @@ public final class WindowObserver {
         
         let selfPtr = Unmanaged.passUnretained(self).toOpaque()
         let appElement = AXUIElementCreateApplication(pid)
-        AXUIElementSetAttributeValue(appElement, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue)
-        AXUIElementSetAttributeValue(appElement, "AXManualAccessibility" as CFString, kCFBooleanTrue)
+        AXUIElementSetMessagingTimeout(appElement, 0.25)
         
         let notifications: [CFString] = [
             kAXWindowCreatedNotification as CFString,
@@ -120,6 +119,7 @@ public final class WindowObserver {
         }
         
         if notification == (kAXFocusedWindowChangedNotification as String) {
+            guard !isPerformingProgrammaticUpdate else { return }
             onFocusedWindowChanged?(element, capturedPid)
             return
         }

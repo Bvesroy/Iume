@@ -232,8 +232,21 @@ struct LayoutEngineTests {
         
         #expect(computation.parkedWindowIds.contains(win3))
         let frame3 = computation.targetFrames[win3]!
-        // Right edge parked at maxVisibleX - sliver = 500 - 14 = 486
-        #expect(frame3.origin.x == 486)
+        // Default zero-sliver parks cleanly offscreen-left: minVisibleX - colWidth - 200 = 0 - 400 - 200 = -600
+        #expect(frame3.origin.x == -600)
+        
+        // When peek sliver is explicitly enabled (> 0)
+        let sliverEngine = LayoutEngine(windowGap: 10, defaultColumnWidthRatio: 0.5, defaultMinimumColumnWidth: 400, offScreenPeekSliverWidth: 14.0)
+        let sliverComputation = sliverEngine.computeLayout(
+            columns: cols,
+            windows: windows,
+            focusedColumnIndex: 0,
+            visibleFrame: CGRect(x: 0, y: 0, width: 500, height: 800),
+            viewportOffset: 0,
+            layoutMode: .manualLayout
+        )
+        let sliverFrame3 = sliverComputation.targetFrames[win3]!
+        #expect(sliverFrame3.origin.x == 486)
     }
     
     @Test("Find closest column index for 2-finger scroll settle")

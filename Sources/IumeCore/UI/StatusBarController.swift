@@ -4,12 +4,19 @@ import SwiftUI
 /// Manages the native macOS menu bar status item and popup menu.
 @MainActor
 public final class StatusBarController: NSObject {
+    public static private(set) var current: StatusBarController?
+    
     private var statusItem: NSStatusItem?
     private var settingsWindow: NSWindow?
     
     public override init() {
         super.init()
+        StatusBarController.current = self
         setupStatusItem()
+    }
+    
+    public static func openSettingsWindow() {
+        current?.openSettings()
     }
     
     public func setupStatusItem() {
@@ -33,6 +40,26 @@ public final class StatusBarController: NSObject {
         let settings = SettingsStore.shared
         let workspaceManager = WorkspaceManager.shared
         let permissions = PermissionManager.shared
+        
+        // 🚀 Primary Kickstart Action
+        let kickstartItem = NSMenuItem(
+            title: "🚀 Kickstart & Arrange Windows",
+            action: #selector(kickstartAction),
+            keyEquivalent: " "
+        )
+        kickstartItem.keyEquivalentModifierMask = [.option, .shift]
+        kickstartItem.target = self
+        menu.addItem(kickstartItem)
+        
+        let launchPanelItem = NSMenuItem(
+            title: "🎛️ Open Slide Launch Control...",
+            action: #selector(openLaunchPanel),
+            keyEquivalent: ""
+        )
+        launchPanelItem.target = self
+        menu.addItem(launchPanelItem)
+        
+        menu.addItem(NSMenuItem.separator())
         
         // Status header
         let statusTitle = settings.isEnabled ? "Iume: Active" : "Iume: Disabled"
@@ -142,6 +169,15 @@ public final class StatusBarController: NSObject {
             WorkspaceManager.shared.applyLayout(animated: true)
             rebuildMenu()
         }
+    }
+    
+    @objc public func kickstartAction() {
+        LaunchHUDController.shared.performKickstart()
+        rebuildMenu()
+    }
+    
+    @objc public func openLaunchPanel() {
+        LaunchHUDController.shared.show()
     }
     
     @objc private func realignStrip() {

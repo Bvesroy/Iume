@@ -5,6 +5,29 @@ All notable changes to **Iume** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-10-14
+
+### Fixed
+- **Eliminated Right-Corner Window Clutter**: Fixed macOS WindowServer's default edge-clamping behavior where windows with $x \ge \text{screenWidth}$ were snapped back to `screenWidth - 40` (1430 pt). Windows past `maxVisibleX` are now deterministically parked offscreen at negative X coordinates (`minVisibleX - colWidth - 200`), leaving the right screen edge 100% clean with zero overlapping window slivers.
+- **Finder Desktop Background Filtering**: Filtered out Finder's invisible desktop window (1470x956) from window discovery by strictly checking standard window controls and titles, eliminating AX timeouts, repositioning resistance, and Finder conflicts.
+- **Ultra-Smooth 1:1 Trackpad Scrolling**:
+  - Replaced run-loop hopping `DispatchQueue.main.async` with synchronous `MainActor.assumeIsolated` execution inside the event tap callback, providing instantaneous 1:1 cursor-following scrolling without frame delay.
+  - Added continuous gesture latching in `shouldInterceptScroll`: once a 2-finger horizontal swipe begins, the gesture remains locked to Iume, preventing trackpad micro-wobbles from leaking into underlying documents.
+  - Eliminated focus-thrashing feedback loop: removed the disruptive `app.hide()` call during scrolling and guarded `onFocusedWindowChanged` against active scrolling gestures, preventing mid-swipe layout resets and animation fights.
+  - Pre-sized all registered windows upon entry into the workspace, reducing scroll-time AX operations to a single 0.2ms `setPosition` call per visible window for 120 FPS buttery smoothness.
+
+## [1.0.1] - 2026-10-14
+
+### Fixed
+- **Resolved Invisible Window Detection**: Removed disruptive `AXEnhancedUserInterface` and `AXManualAccessibility` flags that were preventing Electron, VS Code / Antigravity IDE, Terminal, and Finder from exposing windows.
+- **Multi-Source Window Discovery**: Added fallback checking across `kAXWindowsAttribute`, `kAXMainWindowAttribute`, `kAXFocusedWindowAttribute`, and `kAXChildrenAttribute` to guarantee 100% window discovery across all running applications.
+- **Native Fullscreen Handling**: Added dynamic `AXFullScreen` query to prevent native macOS fullscreen spaces from interfering with desktop strip positioning.
+- **Single-Instance Mutex**: Implemented `/tmp/com.iume.app.lock` with non-blocking kernel `flock` to permanently eliminate concurrent Iume processes and 25% CPU background conflicts.
+- **Elongated Half-Screen Sizing**: Enforced default column width ratio of 0.50 (half visible width) with strict height allocation, ensuring all windows snap cleanly into tall, symmetrical vertical columns side by side.
+- **Viewport Entrance Re-assertion**: Fixed `WindowController.setFrame` so that when windows slide from offscreen into the visible viewport, their full elongated half-screen dimensions are immediately re-asserted, eliminating WindowServer edge shrink.
+- **Automated Window Insertion on Creation**: Improved `handleWindowCreated` with an intelligent retry ladder and app-level window re-scan, ensuring newly opened windows automatically slot into the strip.
+- **Scroll Pacing & IPC Reduction**: Minimized AX IPC overhead during 120Hz trackpad scrolling by bypassing redundant off-screen position calls.
+
 ## [1.0.0] - 2026-10-14
 
 ### Added

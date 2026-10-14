@@ -48,6 +48,30 @@ public struct SettingsView: View {
     
     private var generalTab: some View {
         Form {
+            Section(header: Text("Instant Kickstart")) {
+                Button(action: {
+                    LaunchHUDController.shared.performKickstart()
+                }) {
+                    HStack {
+                        Image(systemName: "bolt.fill")
+                        Text("Kickstart & Arrange Windows into Slide Strip")
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                
+                Button(action: {
+                    LaunchHUDController.shared.show()
+                }) {
+                    HStack {
+                        Image(systemName: "macwindow.on.rectangle")
+                        Text("Open Slide Launch Control Panel")
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            
             Section(header: Text("Management Status")) {
                 Toggle("Enable Iume Window Management", isOn: $settings.isEnabled)
                 Toggle("Launch at Login", isOn: $settings.launchAtLogin)

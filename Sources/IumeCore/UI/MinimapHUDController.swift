@@ -64,6 +64,8 @@ public final class MinimapHUDController: ObservableObject {
         self.hostingView = host
     }
     
+    private var lastScreenId: CGDirectDisplayID?
+    
     public func update(
         columns: [WindowColumn],
         totalStripWidth: CGFloat,
@@ -74,8 +76,10 @@ public final class MinimapHUDController: ObservableObject {
         screen: NSScreen?
     ) {
         guard SettingsStore.shared.showMinimapHUD else {
-            panel?.alphaValue = 0.0
-            panel?.orderOut(nil)
+            if panel?.alphaValue != 0.0 {
+                panel?.alphaValue = 0.0
+                panel?.orderOut(nil)
+            }
             return
         }
         
@@ -89,8 +93,11 @@ public final class MinimapHUDController: ObservableObject {
             activeTitle: activeTitle
         )
         
-        if let targetScreen = screen ?? NSScreen.main {
-            positionPanel(on: targetScreen)
+        let targetScreen = screen ?? NSScreen.main
+        let screenId = targetScreen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
+        if screenId != lastScreenId, let s = targetScreen {
+            lastScreenId = screenId
+            positionPanel(on: s)
         }
         
         showWithAutohide()
@@ -103,11 +110,7 @@ public final class MinimapHUDController: ObservableObject {
         
         if p.alphaValue < 0.95 {
             p.orderFront(nil)
-            NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 0.12
-                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                p.animator().alphaValue = 1.0
-            }
+            p.alphaValue = 1.0
         }
         
         hideTimer = Timer.scheduledTimer(withTimeInterval: 1.25, repeats: false) { [weak self] _ in

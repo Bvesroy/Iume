@@ -27,6 +27,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Start workspace orchestration
         WorkspaceManager.shared.start()
         
+        // Show Launch & Kickstart Control Panel so user can immediately kickstart window arrangement
+        LaunchHUDController.shared.show()
+        
+        if CommandLine.arguments.contains("--kickstart") || CommandLine.arguments.contains("-k") {
+            WorkspaceManager.shared.kickstart()
+        }
+        
         // If accessibility is missing, prompt user
         if !PermissionManager.shared.hasAccessibilityPermission {
             print("[Iume] Accessibility permission not granted yet. Prompting user...")
@@ -42,9 +49,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-// Entry point
+// Entry point with Single-Instance Lock
+let lockFilePath = "/tmp/com.iume.app.lock"
+let lockFd = open(lockFilePath, O_CREAT | O_RDWR, 0o644)
+if lockFd >= 0 {
+    let rc = flock(lockFd, LOCK_EX | LOCK_NB)
+    if rc != 0 {
+        print("[Iume] Another instance is already running. Exiting.")
+        exit(0)
+    }
+}
+
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate
 app.setActivationPolicy(.accessory) // Runs as menu bar accessory app
 app.run()
+

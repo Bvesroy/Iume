@@ -53,7 +53,8 @@ public final class WorkspaceManager: ObservableObject {
         LayoutEngine(
             windowGap: CGFloat(settings.windowGap),
             defaultColumnWidthRatio: CGFloat(settings.defaultColumnWidthRatio),
-            defaultMinimumColumnWidth: 450.0
+            defaultMinimumColumnWidth: 380.0,
+            offScreenPeekSliverWidth: 0.0
         )
     }
     
@@ -78,6 +79,47 @@ public final class WorkspaceManager: ObservableObject {
         shortcutManager.registerDefaultShortcuts()
         scrollController.startEventTap()
         applyLayout(animated: false)
+    }
+    
+    /// Arranges all open eligible windows into continuous slide mode strip immediately.
+    @discardableResult
+    public func kickstart() -> Int {
+        diagnostics.log(category: "Kickstart", message: "Kickstarting window arrangement into slide strip")
+        
+        displayManager.refreshDisplays()
+        initializeWorkspaces()
+        
+        guard permissions.checkPermission() else {
+            diagnostics.log(level: "WARN", category: "Permissions", message: "Accessibility permission missing on kickstart")
+            permissions.promptForAccessibility()
+            return 0
+        }
+        
+        settings.isEnabled = true
+        settings.layoutMode = .scrollStrip
+        
+        registry.removeAll()
+        for id in workspaces.keys {
+            if let display = displayManager.activeDisplays.first(where: { $0.id == id }) {
+                workspaces[id] = DisplayWorkspace(displayGeometry: display)
+            }
+        }
+        
+        discoverAndRegisterWindows()
+        shortcutManager.registerDefaultShortcuts()
+        scrollController.startEventTap()
+        
+        if var ws = workspaces[activeDisplayId] {
+            ws.viewportOffset = 0
+            ws.focusedColumnIndex = 0
+            workspaces[activeDisplayId] = ws
+        }
+        
+        applyLayout(animated: true)
+        
+        let count = registry.allWindows().count
+        diagnostics.log(category: "Kickstart", message: "Kickstart complete: \(count) windows arranged into slide strip")
+        return count
     }
     
     public func stop() {
@@ -302,55 +344,63 @@ public final class WorkspaceManager: ObservableObject {
     }
     
     private func handleWindowCreated(element: AXUIElement, pid: pid_t, retry: Int = 0) {
-        if !discovery.isEligibleWindow(element) {
-            if retry < 3 {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
-                    self?.handleWindowCreated(element: element, pid: pid, retry: retry + 1)
-                }
-            }
+        guard let app = NSRunningApplication(processIdentifier: pid),
+              let bundleId = app.bundleIdentifier,
+              !settings.excludedBundleIdentifiers.contains(bundleId) else { return }
+        
+        if discovery.isEligibleWindow(element) {
+            let isFullscreen = discovery.copyBoolAttribute(element, attribute: "AXFullScreen" as CFString) ?? false
+            guard !isFullscreen else { return }
+            
+            let title = discovery.copyStringAttribute(element, attribute: kAXTitleAttribute as CFString) ?? (app.localizedName ?? "Window")
+            let frame = discovery.copyFrame(element) ?? CGRect(x: 100, y: 100, width: 800, height: 600)
+            let rawId = UInt64(CFHash(element))
+            let windowId = WindowId(pid: pid, rawId: rawId)
+            
+            // Prevent duplicate registration
+            if registry.get(windowId: windowId) != nil { return }
+            
+            let managed = ManagedWindow(
+                id: windowId,
+                pid: pid,
+                bundleIdentifier: bundleId,
+                appName: app.localizedName ?? "App",
+                title: title,
+                frame: frame
+            )
+            
+            registry.register(window: managed, axElement: element)
+            
+            guard var ws = workspaces[activeDisplayId] else { return }
+            let alreadyPresent = ws.columns.contains { $0.windowIds.contains(windowId) }
+            guard !alreadyPresent else { return }
+            
+            let newColIdx = layoutEngine.insertWindow(
+                windowId,
+                into: &ws.columns,
+                focusedColumnIndex: ws.focusedColumnIndex,
+                policy: settings.insertionPolicy,
+                visibleWidth: ws.displayGeometry.visibleFrame.width
+            )
+            ws.focusedColumnIndex = newColIdx
+            workspaces[activeDisplayId] = ws
+            registry.focusedId = windowId
+            
+            applyLayout(animated: true)
+            diagnostics.log(category: "Window", message: "Created & added window: \(title)")
             return
         }
-        guard let app = NSRunningApplication(processIdentifier: pid),
-              let bundleId = app.bundleIdentifier else { return }
         
-        if settings.excludedBundleIdentifiers.contains(bundleId) { return }
-        
-        let title = discovery.copyStringAttribute(element, attribute: kAXTitleAttribute as CFString) ?? (app.localizedName ?? "Window")
-        let frame = discovery.copyFrame(element) ?? CGRect(x: 100, y: 100, width: 800, height: 600)
-        let rawId = UInt64(CFHash(element))
-        let windowId = WindowId(pid: pid, rawId: rawId)
-        
-        // Prevent duplicate registration
-        if registry.get(windowId: windowId) != nil { return }
-        
-        let managed = ManagedWindow(
-            id: windowId,
-            pid: pid,
-            bundleIdentifier: bundleId,
-            appName: app.localizedName ?? "App",
-            title: title,
-            frame: frame
-        )
-        
-        registry.register(window: managed, axElement: element)
-        
-        guard var ws = workspaces[activeDisplayId] else { return }
-        let alreadyPresent = ws.columns.contains { $0.windowIds.contains(windowId) }
-        guard !alreadyPresent else { return }
-        
-        let newColIdx = layoutEngine.insertWindow(
-            windowId,
-            into: &ws.columns,
-            focusedColumnIndex: ws.focusedColumnIndex,
-            policy: settings.insertionPolicy,
-            visibleWidth: ws.displayGeometry.visibleFrame.width
-        )
-        ws.focusedColumnIndex = newColIdx
-        workspaces[activeDisplayId] = ws
-        registry.focusedId = windowId
-        
-        applyLayout(animated: true)
-        diagnostics.log(category: "Window", message: "Created & added window: \(title)")
+        // If not directly eligible yet, retry and also fallback to registering windows for the app
+        if retry < 3 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                guard let self = self, self.settings.isEnabled else { return }
+                self.handleWindowCreated(element: element, pid: pid, retry: retry + 1)
+                if let runningApp = NSRunningApplication(processIdentifier: pid) {
+                    self.registerWindowsForApp(runningApp)
+                }
+            }
+        }
     }
     
     private func handleWindowDestroyed(element: AXUIElement, pid: pid_t) {
@@ -380,6 +430,7 @@ public final class WorkspaceManager: ObservableObject {
     }
     
     private func handleFocusedWindowChanged(element: AXUIElement) {
+        guard !scrollController.isActivelyScrolling else { return }
         guard let winId = registry.findWindowId(matchingAXElement: element) else { return }
         guard var ws = workspaces[activeDisplayId] else { return }
         
@@ -451,6 +502,8 @@ public final class WorkspaceManager: ObservableObject {
                 workspaces[activeDisplayId] = ws
                 applyLayout(animated: true)
             }
+        case .kickstart:
+            kickstart()
         }
     }
     
@@ -511,11 +564,14 @@ public final class WorkspaceManager: ObservableObject {
         }
     }
     
+    private var programmaticResetTimer: Timer?
+    
     private func applyPhysicalWindowPositions(workspace: DisplayWorkspace) {
         observer.isPerformingProgrammaticUpdate = true
-        defer {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                self.observer.isPerformingProgrammaticUpdate = false
+        programmaticResetTimer?.invalidate()
+        programmaticResetTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: false) { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.observer.isPerformingProgrammaticUpdate = false
             }
         }
         
@@ -531,7 +587,7 @@ public final class WorkspaceManager: ObservableObject {
         var focusedWindowFrame: CGRect? = nil
         for (winId, targetFrame) in computation.targetFrames {
             if let ax = registry.getAXElement(windowId: winId) {
-                observer.recordExpectedFrame(targetFrame, for: winId, duration: 0.40)
+                observer.recordExpectedFrame(targetFrame, for: winId, duration: 0.25)
                 controller.setFrame(element: ax, frame: targetFrame, windowId: winId)
                 registry.update(windowId: winId) { $0.frame = targetFrame }
                 

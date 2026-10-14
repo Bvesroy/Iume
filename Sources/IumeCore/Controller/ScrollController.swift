@@ -28,21 +28,22 @@ public final class ScrollController {
     private var settleTimer: Timer?
     private var coastingTimer: Timer?
     
+    public private(set) var isActivelyScrolling: Bool = false
+    private var isInterceptingCurrentGesture: Bool = false
+    
     fileprivate var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
-    private var isFrameUpdatePending = false
     
     public init() {}
     
-    private func notifyOffsetChanged() {
-        guard !isFrameUpdatePending else { return }
-        isFrameUpdatePending = true
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.isFrameUpdatePending = false
-            self.onViewportOffsetChanged?(self.currentOffset)
-            self.onScrollActivity?(self.currentOffset, self.maxOffset, self.currentVelocity)
-        }
+    public func accumulateScroll(dx: CGFloat, dy: CGFloat, phase: Int64, momentumPhase: Int64, flags: CGEventFlags) {
+        handleContinuousScrollDelta(
+            dx: dx,
+            dy: dy,
+            phase: phase,
+            momentumPhase: momentumPhase,
+            flags: flags
+        )
     }
     
     // MARK: - Direct Offset Update
@@ -119,14 +120,22 @@ public final class ScrollController {
         flags: CGEventFlags
     ) {
         cancelAnimation()
+        isActivelyScrolling = true
         
         let settings = SettingsStore.shared
         let naturalMultiplier: CGFloat = settings.trackpadNaturalScroll ? -1.0 : 1.0
         let sensitivity = CGFloat(settings.scrollSensitivity)
         
         // Determine primary delta
-        let isHorizontalIntent = abs(dx) > abs(dy)
-        let primaryDelta = isHorizontalIntent ? dx : dy
+        let hasModifier = flags.contains(.maskAlternate) || flags.contains(.maskControl)
+        let primaryDelta: CGFloat
+        if abs(dx) >= abs(dy) {
+            primaryDelta = dx
+        } else if hasModifier || settings.scrollTriggerMode != .seamlessHorizontal {
+            primaryDelta = dy
+        } else {
+            primaryDelta = dx
+        }
         let effectiveDelta = primaryDelta * naturalMultiplier * sensitivity
         
         let now = CACurrentMediaTime()
@@ -151,7 +160,8 @@ public final class ScrollController {
         }
         
         currentOffset = newOffset
-        notifyOffsetChanged()
+        onViewportOffsetChanged?(currentOffset)
+        onScrollActivity?(currentOffset, maxOffset, currentVelocity)
         
         // Debounce settle timer (130ms)
         settleTimer?.invalidate()
@@ -163,9 +173,6 @@ public final class ScrollController {
         
         // Gesture ended or momentum ended (4 = Ended, 8 = Cancelled)
         if phase == 4 || phase == 8 || momentumPhase == 4 {
-            isFrameUpdatePending = false
-            onViewportOffsetChanged?(currentOffset)
-            onScrollActivity?(currentOffset, maxOffset, currentVelocity)
             settle()
         }
     }
@@ -175,6 +182,8 @@ public final class ScrollController {
     public func settle() {
         settleTimer?.invalidate()
         settleTimer = nil
+        isActivelyScrolling = false
+        isInterceptingCurrentGesture = false
         
         let settings = SettingsStore.shared
         
@@ -250,29 +259,49 @@ public final class ScrollController {
     
     // MARK: - Trackpad & Wheel Interception Tap
     
-    public func shouldInterceptScroll(dx: CGFloat, dy: CGFloat, flags: CGEventFlags) -> Bool {
+    public func shouldInterceptScroll(dx: CGFloat, dy: CGFloat, flags: CGEventFlags, phase: Int64 = 0) -> Bool {
         let settings = SettingsStore.shared
         let hasOption = flags.contains(.maskAlternate)
         let hasControl = flags.contains(.maskControl)
         
+        // If currently locked into an active gesture, maintain interception until gesture ends
+        if isInterceptingCurrentGesture {
+            if phase == 4 || phase == 8 {
+                isInterceptingCurrentGesture = false
+                isActivelyScrolling = false
+            }
+            return true
+        }
+        
+        let shouldStart: Bool
         switch settings.scrollTriggerMode {
         case .seamlessHorizontal:
             // Holding Option or Control always intercepts
-            if hasOption || hasControl { return true }
-            // Intercept horizontal 2-finger scroll when horizontal intent exceeds vertical
-            let absX = abs(dx)
-            let absY = abs(dy)
-            return absX > absY && absX > 0.05
+            if hasOption || hasControl {
+                shouldStart = true
+            } else {
+                // Intercept horizontal 2-finger scroll when horizontal intent exceeds vertical
+                let absX = abs(dx)
+                let absY = abs(dy)
+                shouldStart = absX > absY && absX > 0.05
+            }
             
         case .withOption:
-            return hasOption
+            shouldStart = hasOption
             
         case .withControl:
-            return hasControl
+            shouldStart = hasControl
             
         case .always:
-            return true
+            shouldStart = true
         }
+        
+        if shouldStart {
+            if phase == 1 || phase == 2 {
+                isInterceptingCurrentGesture = true
+            }
+        }
+        return shouldStart
     }
     
     public func startEventTap() {
@@ -304,8 +333,8 @@ public final class ScrollController {
             let momentumPhase = event.getIntegerValueField(.scrollWheelEventMomentumPhase)
             let flags = event.flags
             
-            if controller.shouldInterceptScroll(dx: dx, dy: dy, flags: flags) {
-                DispatchQueue.main.async {
+            if controller.shouldInterceptScroll(dx: dx, dy: dy, flags: flags, phase: phase) {
+                MainActor.assumeIsolated {
                     controller.handleContinuousScrollDelta(
                         dx: dx,
                         dy: dy,

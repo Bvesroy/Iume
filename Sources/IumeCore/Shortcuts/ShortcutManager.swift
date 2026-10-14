@@ -19,6 +19,7 @@ public enum ShortcutAction: String, CaseIterable, Sendable {
     case cycleWidth = "Cycle Column Width"
     case centerColumn = "Center Column"
     case fullWidth = "Full Width"
+    case kickstart = "Kickstart & Arrange Windows"
 }
 
 /// Global shortcut manager using native Carbon EventHotKey APIs.
@@ -86,6 +87,10 @@ public final class ShortcutManager {
         
         register(action: .fullWidth, keyCode: 0x03, modifiers: ctrlOpt, id: 23) // Ctrl + Opt + F (Full Width)
         register(action: .fullWidth, keyCode: 0x03, modifiers: opt, id: 24) // Opt + F
+        
+        // Instant Kickstart & Re-align
+        register(action: .kickstart, keyCode: 0x31, modifiers: optShift, id: 25) // Opt + Shift + Space
+        register(action: .kickstart, keyCode: 0x0F, modifiers: UInt32(cmdKey | optionKey), id: 26) // Cmd + Opt + R
     }
     
     public func register(action: ShortcutAction, keyCode: UInt32, modifiers: UInt32, id: UInt32) {

@@ -106,7 +106,7 @@ public final class SettingsStore: ObservableObject {
         self.insertionPolicy = InsertionPolicy(rawValue: savedPolicy) ?? .afterFocused
         
         self.windowGap = defaults.object(forKey: Keys.windowGap) as? Double ?? 12.0
-        self.defaultColumnWidthRatio = defaults.object(forKey: Keys.defaultColumnWidthRatio) as? Double ?? 0.55
+        self.defaultColumnWidthRatio = defaults.object(forKey: Keys.defaultColumnWidthRatio) as? Double ?? 0.50
         self.snapToColumn = defaults.object(forKey: Keys.snapToColumn) as? Bool ?? true
         self.animationDuration = defaults.object(forKey: Keys.animationDuration) as? Double ?? 0.22
         self.trackpadNaturalScroll = defaults.object(forKey: Keys.trackpadNaturalScroll) as? Bool ?? true
@@ -137,7 +137,7 @@ public final class SettingsStore: ObservableObject {
         layoutMode = .scrollStrip
         insertionPolicy = .afterFocused
         windowGap = 12.0
-        defaultColumnWidthRatio = 0.55
+        defaultColumnWidthRatio = 0.50
         snapToColumn = true
         animationDuration = 0.22
         trackpadNaturalScroll = true

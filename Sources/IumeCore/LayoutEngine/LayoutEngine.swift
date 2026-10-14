@@ -31,9 +31,9 @@ public struct LayoutEngine: Sendable {
     
     public init(
         windowGap: CGFloat = 12.0,
-        defaultColumnWidthRatio: CGFloat = 0.5,
-        defaultMinimumColumnWidth: CGFloat = 500.0,
-        offScreenPeekSliverWidth: CGFloat = 14.0
+        defaultColumnWidthRatio: CGFloat = 0.50,
+        defaultMinimumColumnWidth: CGFloat = 380.0,
+        offScreenPeekSliverWidth: CGFloat = 0.0
     ) {
         self.windowGap = windowGap
         self.defaultColumnWidthRatio = defaultColumnWidthRatio
@@ -142,7 +142,6 @@ public struct LayoutEngine: Sendable {
         var parkedWindowIds: Set<WindowId> = []
         let minVisibleX = visibleFrame.origin.x
         let maxVisibleX = visibleFrame.origin.x + visibleFrame.width
-        let sliver = max(8.0, offScreenPeekSliverWidth)
         
         for (colIndex, column) in columns.enumerated() {
             let colStripX = stripOffsets[colIndex]
@@ -153,18 +152,27 @@ public struct LayoutEngine: Sendable {
             let count = managedInColumn.count
             guard count > 0 else { continue }
             
-            // Edge clamping compensation so WindowServer never rejects or shifts windows onto neighboring displays
+            let sliver = offScreenPeekSliverWidth
             var finalScreenX = colScreenX
             var isParked = false
             
-            if colScreenX + colWidth <= minVisibleX + sliver {
-                // Scrolled completely off the left edge: park with a tiny sliver on the left edge
-                finalScreenX = minVisibleX - colWidth + sliver
-                isParked = true
-            } else if colScreenX >= maxVisibleX - sliver {
-                // Scrolled completely off the right edge: park with a tiny sliver on the right edge
-                finalScreenX = maxVisibleX - sliver
-                isParked = true
+            if sliver > 0 {
+                if colScreenX + colWidth <= minVisibleX + sliver {
+                    finalScreenX = minVisibleX - colWidth + sliver
+                    isParked = true
+                } else if colScreenX >= maxVisibleX - sliver {
+                    finalScreenX = maxVisibleX - sliver
+                    isParked = true
+                }
+            } else {
+                if colScreenX + colWidth <= minVisibleX {
+                    finalScreenX = min(colScreenX, minVisibleX - colWidth - 50)
+                    isParked = true
+                } else if colScreenX >= maxVisibleX {
+                    // Park completely off-screen to the left to prevent WindowServer clamping to screenWidth - 40
+                    finalScreenX = minVisibleX - colWidth - 200
+                    isParked = true
+                }
             }
             
             let totalVerticalGaps = CGFloat(count - 1) * windowGap
@@ -205,7 +213,8 @@ public struct LayoutEngine: Sendable {
         preferredWidth: CGFloat? = nil,
         visibleWidth: CGFloat
     ) -> Int {
-        let width = preferredWidth ?? max(defaultMinimumColumnWidth, visibleWidth * defaultColumnWidthRatio)
+        let halfScreenWidth = floor((visibleWidth - windowGap) * defaultColumnWidthRatio)
+        let width = preferredWidth ?? max(defaultMinimumColumnWidth, halfScreenWidth)
         
         switch policy {
         case .afterFocused:
