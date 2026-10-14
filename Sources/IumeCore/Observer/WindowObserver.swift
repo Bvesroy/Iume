@@ -77,6 +77,8 @@ public final class WindowObserver {
         
         let selfPtr = Unmanaged.passUnretained(self).toOpaque()
         let appElement = AXUIElementCreateApplication(pid)
+        AXUIElementSetAttributeValue(appElement, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue)
+        AXUIElementSetAttributeValue(appElement, "AXManualAccessibility" as CFString, kCFBooleanTrue)
         
         let notifications: [CFString] = [
             kAXWindowCreatedNotification as CFString,
