@@ -15,9 +15,14 @@ public struct SettingsView: View {
                     Label("General", systemImage: "gearshape")
                 }
             
-            navigationTab
+            scrollingTab
                 .tabItem {
-                    Label("Navigation", systemImage: "keyboard")
+                    Label("Trackpad & Scroll", systemImage: "hand.draw")
+                }
+            
+            shortcutsTab
+                .tabItem {
+                    Label("Shortcuts", systemImage: "keyboard")
                 }
             
             windowsTab
@@ -35,7 +40,7 @@ public struct SettingsView: View {
                     Label("Advanced", systemImage: "wrench.and.screwdriver")
                 }
         }
-        .frame(width: 580, height: 460)
+        .frame(width: 620, height: 500)
         .padding()
     }
     
@@ -68,10 +73,13 @@ public struct SettingsView: View {
                 .pickerStyle(.menu)
             }
             
-            Section(header: Text("Spacing & Appearance")) {
+            Section(header: Text("Visuals & HUD")) {
+                Toggle("Show Floating Strip Minimap HUD (TileMyMac style)", isOn: $settings.showMinimapHUD)
+                Toggle("Show Active Window Focus Border (ChainYourMac style)", isOn: $settings.showFocusBorder)
+                
                 HStack {
                     Text("Window Gap:")
-                    Slider(value: $settings.windowGap, in: 0...40, step: 2)
+                    Slider(value: $settings.windowGap, in: 0...36, step: 2)
                     Text("\(Int(settings.windowGap)) pt")
                         .monospacedDigit()
                         .frame(width: 45, alignment: .trailing)
@@ -81,35 +89,67 @@ public struct SettingsView: View {
         .padding()
     }
     
-    // MARK: - Navigation Tab
+    // MARK: - Trackpad & Scroll Tab
     
-    private var navigationTab: some View {
+    private var scrollingTab: some View {
         Form {
-            Section(header: Text("Viewport & Scrolling")) {
-                Toggle("Snap Viewport to Column Boundaries", isOn: $settings.snapToColumn)
-                Toggle("Natural Trackpad Scrolling", isOn: $settings.trackpadNaturalScroll)
+            Section(header: Text("2-Finger Endless Trackpad Scrolling")) {
+                Picker("Scroll Activation Mode", selection: $settings.scrollTriggerMode) {
+                    ForEach(ScrollTriggerMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                .pickerStyle(.menu)
+                
+                Text(settings.scrollTriggerMode.description)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Toggle("Natural Trackpad Scrolling Direction", isOn: $settings.trackpadNaturalScroll)
+                Toggle("Snap Viewport to Column on Gesture End", isOn: $settings.snapToColumn)
+                Toggle("Inertial Momentum Coasting & Flings", isOn: $settings.momentumScrolling)
                 
                 HStack {
-                    Text("Animation Speed:")
-                    Slider(value: $settings.animationDuration, in: 0.05...0.6, step: 0.02)
+                    Text("Scroll Sensitivity:")
+                    Slider(value: $settings.scrollSensitivity, in: 0.5...2.5, step: 0.1)
+                    Text(String(format: "%.1f×", settings.scrollSensitivity))
+                        .monospacedDigit()
+                        .frame(width: 45, alignment: .trailing)
+                }
+                
+                HStack {
+                    Text("Animation Snap Speed:")
+                    Slider(value: $settings.animationDuration, in: 0.08...0.45, step: 0.02)
                     Text(String(format: "%.2fs", settings.animationDuration))
                         .monospacedDigit()
                         .frame(width: 50, alignment: .trailing)
                 }
             }
             
-            Section(header: Text("Default Keyboard Shortcuts")) {
+            Section(header: Text("Gestures Experience")) {
+                Text("• Horizontal 2-Finger Swipes glide continuously across the infinite strip.\n• Vertical 2-Finger Swipes pass directly into the active app (Safari, VS Code, etc.).\n• On gesture lift, the strip smoothly settles on the nearest window with ProMotion 120Hz precision.")
+                    .font(.callout)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding()
+    }
+    
+    // MARK: - Shortcuts Tab
+    
+    private var shortcutsTab: some View {
+        Form {
+            Section(header: Text("Shortcuts (Control + Option & Option Supported)")) {
                 VStack(alignment: .leading, spacing: 6) {
-                    shortcutRow("Focus Previous Window", "⌥ + H")
-                    shortcutRow("Focus Next Window", "⌥ + L")
-                    shortcutRow("Focus Window Up (if stacked)", "⌥ + K")
-                    shortcutRow("Focus Window Down (if stacked)", "⌥ + J")
-                    shortcutRow("Move Column Left", "⌥ + ⇧ + H")
-                    shortcutRow("Move Column Right", "⌥ + ⇧ + L")
-                    shortcutRow("Toggle Window Zoom", "⌥ + Return")
+                    shortcutRow("Focus Previous Window / Column", "⌃⌥ + ←  or  ⌥ + H")
+                    shortcutRow("Focus Next Window / Column", "⌃⌥ + →  or  ⌥ + L")
+                    shortcutRow("Focus Stacked Window Up / Down", "⌥ + K / J")
+                    shortcutRow("Move Column Left / Right", "⌃⌥⇧ + ← / →  or  ⌥⇧ + H / L")
+                    shortcutRow("Cycle Width (33% → 50% → 66% → 100%)", "⌃⌥ + R  or  ⌥ + R")
+                    shortcutRow("Center Active Column on Screen", "⌃⌥ + C  or  ⌥ + C")
+                    shortcutRow("Maximize Column to Full Width", "⌃⌥ + F  or  ⌥ + Return")
                     shortcutRow("Close Active Window", "⌥ + W")
-                    shortcutRow("Cycle Through Windows", "⌥ + Tab")
-                    shortcutRow("Scroll Viewport Left / Right", "⌥ + ← / →")
+                    shortcutRow("Cycle All Windows", "⌥ + Tab")
                 }
             }
         }
@@ -123,9 +163,9 @@ public struct SettingsView: View {
             Text(shortcut)
                 .font(.system(.body, design: .monospaced))
                 .padding(.horizontal, 8)
-                .padding(.vertical, 2)
+                .padding(.vertical, 3)
                 .background(Color.secondary.opacity(0.15))
-                .cornerRadius(4)
+                .cornerRadius(5)
         }
     }
     

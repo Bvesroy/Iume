@@ -77,3 +77,29 @@ public struct WindowColumn: Identifiable, Equatable, Sendable {
         self.width = width
     }
 }
+
+/// Defines how trackpad 2-finger scroll gestures trigger strip navigation.
+public enum ScrollTriggerMode: String, CaseIterable, Codable, Sendable {
+    /// Seamless horizontal 2-finger scroll moves the strip; vertical scroll passes to applications.
+    case seamlessHorizontal = "Seamless Horizontal (Smart)"
+    /// Only intercept when Option (⌥) is held while scrolling with two fingers.
+    case withOption = "Option + 2-Finger Scroll"
+    /// Only intercept when Control (⌃) is held while scrolling with two fingers.
+    case withControl = "Control + 2-Finger Scroll"
+    /// Intercept all continuous scroll gestures.
+    case always = "Always Scroll Strip"
+    
+    public var description: String {
+        switch self {
+        case .seamlessHorizontal:
+            return "Glide across the infinite window strip using 2-finger horizontal swipes. Vertical scrolling stays inside apps."
+        case .withOption:
+            return "Hold Option (⌥) while scrolling with 2 fingers to glide the strip."
+        case .withControl:
+            return "Hold Control (⌃) while scrolling with 2 fingers to glide the strip."
+        case .always:
+            return "All 2-finger scroll gestures navigate the window strip."
+        }
+    }
+}
+

@@ -16,6 +16,9 @@ public enum ShortcutAction: String, CaseIterable, Sendable {
     case cyclePrev = "Cycle Previous Window"
     case scrollLeft = "Scroll Viewport Left"
     case scrollRight = "Scroll Viewport Right"
+    case cycleWidth = "Cycle Column Width"
+    case centerColumn = "Center Column"
+    case fullWidth = "Full Width"
 }
 
 /// Global shortcut manager using native Carbon EventHotKey APIs.
@@ -37,25 +40,52 @@ public final class ShortcutManager {
     public func registerDefaultShortcuts() {
         unregisterAll()
         
-        // Option key modifier: optionKey = 0x0800
         let opt = UInt32(optionKey)
         let optShift = UInt32(optionKey | shiftKey)
+        let ctrlOpt = UInt32(controlKey | optionKey)
+        let ctrlOptShift = UInt32(controlKey | optionKey | shiftKey)
         
         // Carbon virtual key codes:
         // H = 0x04, L = 0x25, J = 0x26, K = 0x28, Enter = 0x24, W = 0x0D, Tab = 0x30
-        // LeftArrow = 0x7B, RightArrow = 0x7C
+        // R = 0x0F, C = 0x08, F = 0x03
+        // LeftArrow = 0x7B, RightArrow = 0x7C, UpArrow = 0x7E, DownArrow = 0x7D
+        
+        // Directional Navigation (Option & Ctrl+Option)
         register(action: .focusLeft, keyCode: 0x04, modifiers: opt, id: 1) // Opt + H
         register(action: .focusRight, keyCode: 0x25, modifiers: opt, id: 2) // Opt + L
         register(action: .focusDown, keyCode: 0x26, modifiers: opt, id: 3) // Opt + J
         register(action: .focusUp, keyCode: 0x28, modifiers: opt, id: 4) // Opt + K
-        register(action: .moveColumnLeft, keyCode: 0x04, modifiers: optShift, id: 5) // Opt + Shift + H
-        register(action: .moveColumnRight, keyCode: 0x25, modifiers: optShift, id: 6) // Opt + Shift + L
-        register(action: .toggleZoom, keyCode: 0x24, modifiers: opt, id: 7) // Opt + Enter
-        register(action: .closeWindow, keyCode: 0x0D, modifiers: opt, id: 8) // Opt + W
-        register(action: .cycleNext, keyCode: 0x30, modifiers: opt, id: 9) // Opt + Tab
-        register(action: .cyclePrev, keyCode: 0x30, modifiers: optShift, id: 10) // Opt + Shift + Tab
-        register(action: .scrollLeft, keyCode: 0x7B, modifiers: opt, id: 11) // Opt + Left
-        register(action: .scrollRight, keyCode: 0x7C, modifiers: opt, id: 12) // Opt + Right
+        
+        register(action: .focusLeft, keyCode: 0x7B, modifiers: ctrlOpt, id: 5) // Ctrl + Opt + Left
+        register(action: .focusRight, keyCode: 0x7C, modifiers: ctrlOpt, id: 6) // Ctrl + Opt + Right
+        register(action: .focusDown, keyCode: 0x7D, modifiers: ctrlOpt, id: 7) // Ctrl + Opt + Down
+        register(action: .focusUp, keyCode: 0x7E, modifiers: ctrlOpt, id: 8) // Ctrl + Opt + Up
+        
+        // Column Moving (Option+Shift & Ctrl+Option+Shift)
+        register(action: .moveColumnLeft, keyCode: 0x04, modifiers: optShift, id: 9) // Opt + Shift + H
+        register(action: .moveColumnRight, keyCode: 0x25, modifiers: optShift, id: 10) // Opt + Shift + L
+        register(action: .moveColumnLeft, keyCode: 0x7B, modifiers: ctrlOptShift, id: 11) // Ctrl + Opt + Shift + Left
+        register(action: .moveColumnRight, keyCode: 0x7C, modifiers: ctrlOptShift, id: 12) // Ctrl + Opt + Shift + Right
+        
+        // Window Control
+        register(action: .toggleZoom, keyCode: 0x24, modifiers: opt, id: 13) // Opt + Enter
+        register(action: .closeWindow, keyCode: 0x0D, modifiers: opt, id: 14) // Opt + W
+        register(action: .cycleNext, keyCode: 0x30, modifiers: opt, id: 15) // Opt + Tab
+        register(action: .cyclePrev, keyCode: 0x30, modifiers: optShift, id: 16) // Opt + Shift + Tab
+        
+        // Viewport Scrolling
+        register(action: .scrollLeft, keyCode: 0x7B, modifiers: opt, id: 17) // Opt + Left
+        register(action: .scrollRight, keyCode: 0x7C, modifiers: opt, id: 18) // Opt + Right
+        
+        // TileMyMac & ChainYourMac Sizing Shortcuts
+        register(action: .cycleWidth, keyCode: 0x0F, modifiers: ctrlOpt, id: 19) // Ctrl + Opt + R (Cycle Width)
+        register(action: .cycleWidth, keyCode: 0x0F, modifiers: opt, id: 20) // Opt + R
+        
+        register(action: .centerColumn, keyCode: 0x08, modifiers: ctrlOpt, id: 21) // Ctrl + Opt + C (Center)
+        register(action: .centerColumn, keyCode: 0x08, modifiers: opt, id: 22) // Opt + C
+        
+        register(action: .fullWidth, keyCode: 0x03, modifiers: ctrlOpt, id: 23) // Ctrl + Opt + F (Full Width)
+        register(action: .fullWidth, keyCode: 0x03, modifiers: opt, id: 24) // Opt + F
     }
     
     public func register(action: ShortcutAction, keyCode: UInt32, modifiers: UInt32, id: UInt32) {

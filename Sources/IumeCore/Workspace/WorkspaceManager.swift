@@ -41,6 +41,14 @@ public final class WorkspaceManager: ObservableObject {
     @Published public private(set) var workspaces: [CGDirectDisplayID: DisplayWorkspace] = [:]
     @Published public private(set) var activeDisplayId: CGDirectDisplayID = 0
     
+    public func setWorkspace(_ workspace: DisplayWorkspace, for displayId: CGDirectDisplayID) {
+        workspaces[displayId] = workspace
+    }
+    
+    public func setActiveDisplayId(_ id: CGDirectDisplayID) {
+        activeDisplayId = id
+    }
+    
     public var layoutEngine: LayoutEngine {
         LayoutEngine(
             windowGap: CGFloat(settings.windowGap),
@@ -68,14 +76,18 @@ public final class WorkspaceManager: ObservableObject {
         
         discoverAndRegisterWindows()
         shortcutManager.registerDefaultShortcuts()
+        scrollController.startEventTap()
         applyLayout(animated: false)
     }
     
     public func stop() {
         diagnostics.log(category: "Lifecycle", message: "Stopping Iume Window Manager")
+        scrollController.stopEventTap()
         shortcutManager.unregisterAll()
         registry.removeAll()
         workspaces.removeAll()
+        FocusBorderOverlay.shared.hide()
+        MinimapHUDController.shared.fadeOut()
     }
     
     // MARK: - Initial Setup
@@ -160,6 +172,17 @@ public final class WorkspaceManager: ObservableObject {
             self.handleFocusedWindowChanged(element: element)
         }
         
+        // Manual external window move & resize reconciliation
+        observer.onWindowMoved = { [weak self] element, pid in
+            guard let self = self, self.settings.isEnabled else { return }
+            self.handleWindowFrameChanged(element: element, pid: pid)
+        }
+        
+        observer.onWindowResized = { [weak self] element, pid in
+            guard let self = self, self.settings.isEnabled else { return }
+            self.handleWindowFrameChanged(element: element, pid: pid)
+        }
+        
         // Scroll updates
         scrollController.onViewportOffsetChanged = { [weak self] newOffset in
             guard let self = self else { return }
@@ -167,6 +190,42 @@ public final class WorkspaceManager: ObservableObject {
             ws.viewportOffset = newOffset
             self.workspaces[self.activeDisplayId] = ws
             self.applyPhysicalWindowPositions(workspace: ws)
+        }
+        
+        // Minimap HUD activity updates
+        scrollController.onScrollActivity = { [weak self] offset, maxOffset, velocity in
+            guard let self = self, let ws = self.workspaces[self.activeDisplayId] else { return }
+            let activeTitle = self.registry.focusedId.flatMap { self.registry.get(windowId: $0)?.title } ?? ""
+            let screen = NSScreen.screens.first { $0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID == self.activeDisplayId }
+            MinimapHUDController.shared.update(
+                columns: ws.columns,
+                totalStripWidth: self.layoutEngine.totalStripWidth(columns: ws.columns),
+                viewportOffset: offset,
+                visibleWidth: ws.displayGeometry.visibleFrame.width,
+                focusedIndex: ws.focusedColumnIndex,
+                activeTitle: activeTitle,
+                screen: screen
+            )
+        }
+        
+        // Settle & snapping requested after 2-finger scroll
+        scrollController.onSettleRequested = { [weak self] projectedOffset in
+            guard let self = self, let ws = self.workspaces[self.activeDisplayId], !ws.columns.isEmpty else { return }
+            let totalW = self.layoutEngine.totalStripWidth(columns: ws.columns)
+            let maxOffset = max(0, totalW - ws.displayGeometry.visibleFrame.width)
+            let targetColIdx = self.layoutEngine.findClosestColumnIndex(
+                for: projectedOffset,
+                columns: ws.columns,
+                visibleWidth: ws.displayGeometry.visibleFrame.width
+            )
+            let offsets = self.layoutEngine.columnStripOffsets(columns: ws.columns)
+            let targetOffset = min(max(0, offsets[targetColIdx]), maxOffset)
+            
+            self.scrollController.scrollTo(target: targetOffset, maxOffset: maxOffset, duration: self.settings.animationDuration)
+            
+            if let targetWinId = ws.columns[targetColIdx].windowIds.first {
+                self.activateWindow(targetWinId, inColumn: targetColIdx)
+            }
         }
         
         // Focus manager requests
@@ -303,10 +362,28 @@ public final class WorkspaceManager: ObservableObject {
             focusManager.cycleWindows(columns: ws.columns, currentWindowId: registry.focusedId, forward: false)
         case .scrollLeft:
             let maxOffset = max(0, layoutEngine.totalStripWidth(columns: ws.columns) - ws.displayGeometry.visibleFrame.width)
-            scrollController.scrollBy(deltaX: -150, maxOffset: maxOffset)
+            scrollController.scrollBy(deltaX: -160, maxOffset: maxOffset)
         case .scrollRight:
             let maxOffset = max(0, layoutEngine.totalStripWidth(columns: ws.columns) - ws.displayGeometry.visibleFrame.width)
-            scrollController.scrollBy(deltaX: 150, maxOffset: maxOffset)
+            scrollController.scrollBy(deltaX: 160, maxOffset: maxOffset)
+        case .cycleWidth:
+            if let current = ws.focusedColumnIndex {
+                _ = layoutEngine.cycleColumnWidth(at: current, columns: &ws.columns, visibleWidth: ws.displayGeometry.visibleFrame.width)
+                workspaces[activeDisplayId] = ws
+                applyLayout(animated: true)
+            }
+        case .centerColumn:
+            if let current = ws.focusedColumnIndex {
+                let centerOffset = layoutEngine.centerColumnOffset(at: current, columns: ws.columns, visibleWidth: ws.displayGeometry.visibleFrame.width)
+                let maxOffset = max(0, layoutEngine.totalStripWidth(columns: ws.columns) - ws.displayGeometry.visibleFrame.width)
+                scrollController.scrollTo(target: centerOffset, maxOffset: maxOffset, duration: settings.animationDuration)
+            }
+        case .fullWidth:
+            if let current = ws.focusedColumnIndex {
+                layoutEngine.maximizeColumn(at: current, columns: &ws.columns, visibleWidth: ws.displayGeometry.visibleFrame.width)
+                workspaces[activeDisplayId] = ws
+                applyLayout(animated: true)
+            }
         }
     }
     
@@ -337,6 +414,20 @@ public final class WorkspaceManager: ObservableObject {
         )
         
         let maxOffset = max(0, computation.totalStripWidth - ws.displayGeometry.visibleFrame.width)
+        scrollController.maxOffset = maxOffset
+        
+        // Update Minimap HUD
+        let activeTitle = registry.focusedId.flatMap { registry.get(windowId: $0)?.title } ?? ""
+        let screen = NSScreen.screens.first { $0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID == activeDisplayId }
+        MinimapHUDController.shared.update(
+            columns: ws.columns,
+            totalStripWidth: computation.totalStripWidth,
+            viewportOffset: ws.viewportOffset,
+            visibleWidth: ws.displayGeometry.visibleFrame.width,
+            focusedIndex: ws.focusedColumnIndex,
+            activeTitle: activeTitle,
+            screen: screen
+        )
         
         if animated && abs(computation.targetViewportOffset - ws.viewportOffset) > 1.0 {
             scrollController.scrollTo(
@@ -346,6 +437,7 @@ public final class WorkspaceManager: ObservableObject {
             )
         } else {
             scrollController.setOffset(computation.targetViewportOffset, maxOffset: maxOffset)
+            applyPhysicalWindowPositions(workspace: ws)
         }
     }
     
@@ -366,12 +458,66 @@ public final class WorkspaceManager: ObservableObject {
             layoutMode: settings.layoutMode
         )
         
+        var focusedWindowFrame: CGRect? = nil
         for (winId, targetFrame) in computation.targetFrames {
             if let ax = registry.getAXElement(windowId: winId) {
-                controller.setFrame(element: ax, frame: targetFrame)
+                observer.recordExpectedFrame(targetFrame, for: winId)
+                controller.setFrame(element: ax, frame: targetFrame, windowId: winId)
                 registry.update(windowId: winId) { $0.frame = targetFrame }
+                
+                if winId == registry.focusedId {
+                    focusedWindowFrame = targetFrame
+                }
             }
         }
+        
+        // Update Focus Border Overlay
+        FocusBorderOverlay.shared.updateFrame(focusedWindowFrame, visibleFrame: workspace.displayGeometry.visibleFrame)
+    }
+    
+    // MARK: - Frame Change & Scroll Handlers
+    
+    private func handleWindowFrameChanged(element: AXUIElement, pid: pid_t) {
+        guard let winId = registry.findWindowId(matchingAXElement: element),
+              let observedFrame = discovery.copyFrame(element) else { return }
+        
+        // Guard against programmatic echoes
+        guard !observer.isSelfOriginatedFrameChange(windowId: winId, observedFrame: observedFrame) else {
+            return
+        }
+        
+        reconcileExternalFrameChange(windowId: winId, newFrame: observedFrame)
+    }
+    
+    public func reconcileExternalFrameChange(windowId: WindowId, newFrame: CGRect) {
+        guard let win = registry.get(windowId: windowId) else { return }
+        guard var ws = workspaces[activeDisplayId] else { return }
+        
+        let widthChanged = abs(newFrame.width - win.frame.width) > 4.0
+        
+        registry.update(windowId: windowId) {
+            $0.frame = newFrame
+            if widthChanged {
+                $0.preferredWidth = newFrame.width
+            }
+        }
+        
+        if widthChanged, let colIdx = ws.columns.firstIndex(where: { $0.windowIds.contains(windowId) }) {
+            ws.columns[colIdx].width = newFrame.width
+            workspaces[activeDisplayId] = ws
+        }
+        
+        applyLayout(animated: false)
+        diagnostics.log(category: "Reconcile", message: "Reconciled manual frame change for \(windowId)")
+    }
+    
+    public func applyScrollDelta(_ delta: CGFloat) {
+        guard let ws = workspaces[activeDisplayId] else { return }
+        let totalWidth = layoutEngine.totalStripWidth(columns: ws.columns)
+        let maxOffset = max(0, totalWidth - ws.displayGeometry.visibleFrame.width)
+        let multiplier: CGFloat = settings.trackpadNaturalScroll ? -1.0 : 1.0
+        let effectiveDelta = delta * multiplier
+        scrollController.scrollBy(deltaX: effectiveDelta, maxOffset: maxOffset)
     }
     
     // MARK: - Multi-Monitor Handling

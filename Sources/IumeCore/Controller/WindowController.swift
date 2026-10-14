@@ -8,18 +8,60 @@ public final class WindowController {
     
     public init() {}
     
+    // Cache of last applied frames by window ID to eliminate redundant AX IPC overhead
+    private var lastAppliedFrames: [WindowId: CGRect] = [:]
+    
+    public func clearFrameCache(for windowId: WindowId? = nil) {
+        if let id = windowId {
+            lastAppliedFrames.removeValue(forKey: id)
+        } else {
+            lastAppliedFrames.removeAll()
+        }
+    }
+    
     // MARK: - Frame Manipulation
     
     @discardableResult
-    public func setFrame(element: AXUIElement, frame: CGRect) -> Bool {
-        // Set size first then position to avoid clamping against screen boundaries
-        let sizeSuccess = setSize(element: element, size: frame.size)
-        let posSuccess = setPosition(element: element, position: frame.origin)
-        return sizeSuccess && posSuccess
+    public func setFrame(element: AXUIElement, frame: CGRect, windowId: WindowId? = nil) -> Bool {
+        AXUIElementSetMessagingTimeout(element, 0.15)
+        
+        if let id = windowId, let prev = lastAppliedFrames[id] {
+            let posDiff = abs(prev.origin.x - frame.origin.x) + abs(prev.origin.y - frame.origin.y)
+            let sizeDiff = abs(prev.size.width - frame.size.width) + abs(prev.size.height - frame.size.height)
+            
+            // If frame hasn't visibly changed (< 0.25 pt), skip entirely
+            if posDiff < 0.25 && sizeDiff < 0.25 {
+                return true
+            }
+            
+            var success = true
+            // Only set size if size actually changed
+            if sizeDiff >= 0.5 {
+                success = setSize(element: element, size: frame.size) && success
+            }
+            // Only set position if position actually changed
+            if posDiff >= 0.25 {
+                success = setPosition(element: element, position: frame.origin) && success
+            }
+            
+            if success {
+                lastAppliedFrames[id] = frame
+            }
+            return success
+        } else {
+            // First time applying frame
+            let sizeSuccess = setSize(element: element, size: frame.size)
+            let posSuccess = setPosition(element: element, position: frame.origin)
+            if let id = windowId, sizeSuccess && posSuccess {
+                lastAppliedFrames[id] = frame
+            }
+            return sizeSuccess && posSuccess
+        }
     }
     
     @discardableResult
     public func setPosition(element: AXUIElement, position: CGPoint) -> Bool {
+        AXUIElementSetMessagingTimeout(element, 0.15)
         var point = position
         guard let value = AXValueCreate(.cgPoint, &point) else { return false }
         let err = AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, value)
@@ -28,6 +70,7 @@ public final class WindowController {
     
     @discardableResult
     public func setSize(element: AXUIElement, size: CGSize) -> Bool {
+        AXUIElementSetMessagingTimeout(element, 0.15)
         var sz = size
         guard let value = AXValueCreate(.cgSize, &sz) else { return false }
         let err = AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, value)

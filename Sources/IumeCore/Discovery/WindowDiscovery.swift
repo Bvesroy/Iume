@@ -13,6 +13,8 @@ public final class WindowDiscovery {
     /// Enumerates all eligible standard windows for a running application.
     public func discoverWindows(for pid: pid_t, bundleId: String, appName: String) -> [(ManagedWindow, AXUIElement)] {
         let appElement = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(appElement, 0.25)
+        
         var windowsRef: AnyObject?
         let result = AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef)
         
@@ -20,18 +22,35 @@ public final class WindowDiscovery {
             return []
         }
         
+        let cgCandidates = fetchCGWindowCatalog()[pid] ?? []
+        var usedWindowNumbers: Set<UInt32> = []
         var discovered: [(ManagedWindow, AXUIElement)] = []
         
         for (index, windowElement) in axWindows.enumerated() {
+            AXUIElementSetMessagingTimeout(windowElement, 0.20)
             guard isEligibleWindow(windowElement) else { continue }
             
             let title = copyStringAttribute(windowElement, attribute: kAXTitleAttribute as CFString) ?? "\(appName) Window"
             let frame = copyFrame(windowElement) ?? CGRect(x: 100, y: 100, width: 800, height: 600)
             let isMinimized = copyBoolAttribute(windowElement, attribute: kAXMinimizedAttribute as CFString) ?? false
             
-            // Unique ID from PID + AXUIElement hash / index
-            let rawId = UInt64(CFHash(windowElement))
-            let windowId = WindowId(pid: pid, rawId: rawId != 0 ? rawId : UInt64(index + 1))
+            // Match with public CGWindowListCopyWindowInfo by frame proximity to obtain deterministic CGWindowID
+            let rawId: UInt64 = {
+                if let matched = cgCandidates.first(where: { cand in
+                    !usedWindowNumbers.contains(cand.windowNumber) &&
+                    cand.layer == 0 &&
+                    abs(cand.bounds.minX - frame.minX) < 25 &&
+                    abs(cand.bounds.minY - frame.minY) < 25 &&
+                    abs(cand.bounds.width - frame.width) < 25
+                }) {
+                    usedWindowNumbers.insert(matched.windowNumber)
+                    return UInt64(matched.windowNumber)
+                }
+                let hash = UInt64(CFHash(windowElement))
+                return hash != 0 ? hash : UInt64(index + 1)
+            }()
+            
+            let windowId = WindowId(pid: pid, rawId: rawId)
             
             let managed = ManagedWindow(
                 id: windowId,
@@ -51,6 +70,25 @@ public final class WindowDiscovery {
         }
         
         return discovered
+    }
+    
+    private func fetchCGWindowCatalog() -> [pid_t: [(windowNumber: UInt32, bounds: CGRect, layer: Int)]] {
+        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+        guard let infoList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
+            return [:]
+        }
+        var map: [pid_t: [(windowNumber: UInt32, bounds: CGRect, layer: Int)]] = [:]
+        for entry in infoList {
+            guard let pid = entry[kCGWindowOwnerPID as String] as? Int32,
+                  let winNum = entry[kCGWindowNumber as String] as? UInt32,
+                  let layer = entry[kCGWindowLayer as String] as? Int,
+                  let boundsDict = entry[kCGWindowBounds as String] as? NSDictionary,
+                  let bounds = CGRect(dictionaryRepresentation: boundsDict) else {
+                continue
+            }
+            map[pid, default: []].append((winNum, bounds, layer))
+        }
+        return map
     }
     
     // MARK: - Validation

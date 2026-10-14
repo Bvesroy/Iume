@@ -24,10 +24,27 @@ public final class WindowObserver {
     /// Set while Iume is programmatically repositioning windows to avoid feedback loops.
     public var isPerformingProgrammaticUpdate: Bool = false
     
+    private var expectedFrames: [WindowId: (frame: CGRect, expiresAt: CFAbsoluteTime)] = [:]
     private var observers: [pid_t: AXObserver] = [:]
     private var debounceTimer: Timer?
     
     public init() {}
+    
+    // MARK: - Programmatic Intent Suppression
+    
+    public func recordExpectedFrame(_ frame: CGRect, for windowId: WindowId, duration: CFAbsoluteTime = 0.35) {
+        expectedFrames[windowId] = (frame, CFAbsoluteTimeGetCurrent() + duration)
+    }
+    
+    public func isSelfOriginatedFrameChange(windowId: WindowId, observedFrame: CGRect) -> Bool {
+        guard let expected = expectedFrames[windowId] else { return false }
+        guard CFAbsoluteTimeGetCurrent() <= expected.expiresAt else { return false }
+        let dx = abs(expected.frame.origin.x - observedFrame.origin.x)
+        let dy = abs(expected.frame.origin.y - observedFrame.origin.y)
+        let dw = abs(expected.frame.size.width - observedFrame.size.width)
+        let dh = abs(expected.frame.size.height - observedFrame.size.height)
+        return dx <= 5.0 && dy <= 5.0 && dw <= 5.0 && dh <= 5.0
+    }
     
     public func cleanup() {
         for (_, observer) in observers {

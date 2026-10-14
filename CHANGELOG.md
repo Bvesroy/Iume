@@ -22,3 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Native SwiftUI Settings Window**: Five comprehensive preference tabs: General, Navigation, Windows, Displays, and Advanced Diagnostics.
 - **Safe Accessibility Architecture**: Zero-SIP requirement, zero-root privileges, fully compliant with modern macOS sandboxing and security guidelines.
 - **Packaging and Build Automation**: Automated build, release, code signing, and `.app` bundle packaging scripts (`build.sh`, `build-release.sh`, `package.sh`).
+- **Quartz WindowServer Edge Parking (Sliver Clamping)**: Off-screen columns past the left or right screen boundary are parked with a configurable peek sliver (14 pt), preventing WindowServer boundary fight, layout jitter, and multi-display spillage.
+- **Trackpad & Wheel Physical Gestures**: Intercepts `Option + Trackpad / Scroll Wheel` continuous horizontal pan gestures via `CGEventTap` with automatic timeout recovery and 120Hz ProMotion pacing.
+- **Intent Suppression & Expected-Frame Loop Prevention**: Eliminates layout oscillation from programmatic `kAXWindowMoved` / `kAXWindowResized` echoes using microsecond timestamps and spatial tolerance matching.
+- **Manual User Resize Reconciliation**: User edge-dragging outside suppression windows is dynamically recognized, updating column widths and user-preferred dimensions so custom sizes persist across viewport scrolling.
+- **AX Hang Protection**: Configured `AXUIElementSetMessagingTimeout` across discovery and actuator layers to prevent unresponsive target applications from blocking the window manager.
+- **Deterministic Window ID Resolution**: Cross-references Accessibility elements with `CGWindowListCopyWindowInfo` to map real `CGWindowID` numbers without Screen Recording permissions.
+

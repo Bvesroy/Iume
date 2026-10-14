@@ -18,6 +18,11 @@ public final class SettingsStore: ObservableObject {
         static let snapToColumn = "iume.snapToColumn"
         static let animationDuration = "iume.animationDuration"
         static let trackpadNaturalScroll = "iume.trackpadNaturalScroll"
+        static let scrollTriggerMode = "iume.scrollTriggerMode"
+        static let scrollSensitivity = "iume.scrollSensitivity"
+        static let momentumScrolling = "iume.momentumScrolling"
+        static let showMinimapHUD = "iume.showMinimapHUD"
+        static let showFocusBorder = "iume.showFocusBorder"
         static let launchAtLogin = "iume.launchAtLogin"
         static let excludedBundleIdentifiers = "iume.excludedBundleIdentifiers"
         static let focusFollowsMouse = "iume.focusFollowsMouse"
@@ -57,6 +62,26 @@ public final class SettingsStore: ObservableObject {
         didSet { defaults.set(trackpadNaturalScroll, forKey: Keys.trackpadNaturalScroll) }
     }
     
+    @Published public var scrollTriggerMode: ScrollTriggerMode {
+        didSet { defaults.set(scrollTriggerMode.rawValue, forKey: Keys.scrollTriggerMode) }
+    }
+    
+    @Published public var scrollSensitivity: Double {
+        didSet { defaults.set(scrollSensitivity, forKey: Keys.scrollSensitivity) }
+    }
+    
+    @Published public var momentumScrolling: Bool {
+        didSet { defaults.set(momentumScrolling, forKey: Keys.momentumScrolling) }
+    }
+    
+    @Published public var showMinimapHUD: Bool {
+        didSet { defaults.set(showMinimapHUD, forKey: Keys.showMinimapHUD) }
+    }
+    
+    @Published public var showFocusBorder: Bool {
+        didSet { defaults.set(showFocusBorder, forKey: Keys.showFocusBorder) }
+    }
+    
     @Published public var launchAtLogin: Bool {
         didSet { defaults.set(launchAtLogin, forKey: Keys.launchAtLogin) }
     }
@@ -85,6 +110,14 @@ public final class SettingsStore: ObservableObject {
         self.snapToColumn = defaults.object(forKey: Keys.snapToColumn) as? Bool ?? true
         self.animationDuration = defaults.object(forKey: Keys.animationDuration) as? Double ?? 0.22
         self.trackpadNaturalScroll = defaults.object(forKey: Keys.trackpadNaturalScroll) as? Bool ?? true
+        
+        let savedTrigger = defaults.string(forKey: Keys.scrollTriggerMode) ?? ScrollTriggerMode.seamlessHorizontal.rawValue
+        self.scrollTriggerMode = ScrollTriggerMode(rawValue: savedTrigger) ?? .seamlessHorizontal
+        self.scrollSensitivity = defaults.object(forKey: Keys.scrollSensitivity) as? Double ?? 1.0
+        self.momentumScrolling = defaults.object(forKey: Keys.momentumScrolling) as? Bool ?? true
+        self.showMinimapHUD = defaults.object(forKey: Keys.showMinimapHUD) as? Bool ?? true
+        self.showFocusBorder = defaults.object(forKey: Keys.showFocusBorder) as? Bool ?? false
+        
         self.launchAtLogin = defaults.object(forKey: Keys.launchAtLogin) as? Bool ?? false
         self.focusFollowsMouse = defaults.object(forKey: Keys.focusFollowsMouse) as? Bool ?? false
         
@@ -107,6 +140,11 @@ public final class SettingsStore: ObservableObject {
         snapToColumn = true
         animationDuration = 0.22
         trackpadNaturalScroll = true
+        scrollTriggerMode = .seamlessHorizontal
+        scrollSensitivity = 1.0
+        momentumScrolling = true
+        showMinimapHUD = true
+        showFocusBorder = false
         focusFollowsMouse = false
         excludedBundleIdentifiers = [
             "com.apple.finder",

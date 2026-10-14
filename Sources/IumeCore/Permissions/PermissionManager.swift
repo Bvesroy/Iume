@@ -8,23 +8,45 @@ public final class PermissionManager: ObservableObject {
     public static let shared = PermissionManager()
     
     @Published public private(set) var hasAccessibilityPermission: Bool = false
+    public var onPermissionStateChanged: ((Bool) -> Void)?
+    private var pollTimer: Timer?
     
     public init() {
         checkPermission()
+        startMonitoring()
     }
     
     @discardableResult
     public func checkPermission() -> Bool {
         let trusted = AXIsProcessTrusted()
-        self.hasAccessibilityPermission = trusted
+        if trusted != self.hasAccessibilityPermission {
+            self.hasAccessibilityPermission = trusted
+            self.onPermissionStateChanged?(trusted)
+        }
         return trusted
     }
     
+    public func startMonitoring() {
+        pollTimer?.invalidate()
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.checkPermission()
+            }
+        }
+    }
+    
+    public func stopMonitoring() {
+        pollTimer?.invalidate()
+        pollTimer = nil
+    }
+    
     public func promptForAccessibility() {
-        // "AXTrustedCheckOptionPrompt" is the string representation of kAXTrustedCheckOptionPrompt
         let options = ["AXTrustedCheckOptionPrompt" as CFString: true] as CFDictionary
         let trusted = AXIsProcessTrustedWithOptions(options)
-        self.hasAccessibilityPermission = trusted
+        if trusted != self.hasAccessibilityPermission {
+            self.hasAccessibilityPermission = trusted
+            self.onPermissionStateChanged?(trusted)
+        }
     }
     
     public func openAccessibilityPreferences() {

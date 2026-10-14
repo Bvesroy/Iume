@@ -11,6 +11,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Initialize menu bar icon and controls
         statusBarController = StatusBarController()
         
+        // Listen for runtime permission grants and bootstrap automatically
+        PermissionManager.shared.onPermissionStateChanged = { [weak self] granted in
+            guard let self = self else { return }
+            if granted {
+                print("[Iume] Accessibility permission granted! Bootstrapping window management...")
+                WorkspaceManager.shared.start()
+            } else {
+                print("[Iume] Accessibility permission revoked. Pausing window management.")
+                WorkspaceManager.shared.stop()
+            }
+            self.statusBarController?.rebuildMenu()
+        }
+        
         // Start workspace orchestration
         WorkspaceManager.shared.start()
         
@@ -21,6 +34,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             print("[Iume] Accessibility permission active. Strip layout online.")
         }
+        
+        // Open Settings window to provide visible interactive GUI
+        statusBarController?.openSettings()
     }
     
     func applicationWillTerminate(_ notification: Notification) {
