@@ -102,22 +102,31 @@ public final class WindowDiscovery {
             return false
         }
         
-        // Exclude system sheets, menus, tooltips
+        // Exclude system sheets, menus, tooltips, dialogs
         if let subrole = copyStringAttribute(element, attribute: kAXSubroleAttribute as CFString) {
-            // Standard windows are the primary managed candidates
             if subrole == (kAXStandardWindowSubrole as String) {
                 return true
             }
-            // Dialogs, sheets, and system drawers should not be placed into strip columns
             if subrole == (kAXDialogSubrole as String) ||
-               subrole == (kAXSystemDialogSubrole as String) ||
-               subrole == "AXUnknown" {
+               subrole == (kAXSystemDialogSubrole as String) {
                 return false
             }
         }
         
-        // If no subrole specified, check if it has a title or standard size
-        if let size = copyFrame(element)?.size, size.width > 150 && size.height > 100 {
+        // Many apps (Electron, new Safari/Chrome tabs, Terminal) temporarily show AXUnknown or empty subrole.
+        // Check for standard window action controls (Close button, Fullscreen button, Minimize button)
+        var closeButton: AnyObject?
+        if AXUIElementCopyAttributeValue(element, kAXCloseButtonAttribute as CFString, &closeButton) == .success, closeButton != nil {
+            return true
+        }
+        
+        // If it has a non-empty title
+        if let title = copyStringAttribute(element, attribute: kAXTitleAttribute as CFString), !title.isEmpty {
+            return true
+        }
+        
+        // Fallback: Check if it has dimensions of a normal application window
+        if let size = copyFrame(element)?.size, size.width > 100 && size.height > 80 {
             return true
         }
         

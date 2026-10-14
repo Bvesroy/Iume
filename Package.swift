@@ -22,6 +22,11 @@ let package = Package(
             dependencies: ["IumeCore"],
             path: "Sources/Iume"
         ),
+        .executableTarget(
+            name: "IumeLiveTest",
+            dependencies: ["IumeCore"],
+            path: "Sources/IumeLiveTest"
+        ),
         .testTarget(
             name: "IumeCoreTests",
             dependencies: ["IumeCore"],

@@ -23,39 +23,40 @@ public final class WindowController {
     
     @discardableResult
     public func setFrame(element: AXUIElement, frame: CGRect, windowId: WindowId? = nil) -> Bool {
-        AXUIElementSetMessagingTimeout(element, 0.15)
+        AXUIElementSetMessagingTimeout(element, 0.08)
         
         if let id = windowId, let prev = lastAppliedFrames[id] {
             let posDiff = abs(prev.origin.x - frame.origin.x) + abs(prev.origin.y - frame.origin.y)
             let sizeDiff = abs(prev.size.width - frame.size.width) + abs(prev.size.height - frame.size.height)
             
-            // If frame hasn't visibly changed (< 0.25 pt), skip entirely
-            if posDiff < 0.25 && sizeDiff < 0.25 {
+            // If frame hasn't visibly changed (< 0.5 pt), skip entirely (0 IPC calls)
+            if posDiff < 0.5 && sizeDiff < 0.5 {
                 return true
             }
             
-            var success = true
-            // Only set size if size actually changed
-            if sizeDiff >= 0.5 {
-                success = setSize(element: element, size: frame.size) && success
-            }
-            // Only set position if position actually changed
-            if posDiff >= 0.25 {
-                success = setPosition(element: element, position: frame.origin) && success
+            // If size is unchanged (typical for scrolling across the strip), ONLY set position once!
+            if sizeDiff < 0.5 {
+                let ok = setPosition(element: element, position: frame.origin)
+                lastAppliedFrames[id] = frame
+                return ok
             }
             
-            if success {
-                lastAppliedFrames[id] = frame
-            }
-            return success
+            // Size changed: set origin, then size, then origin to prevent clipping
+            _ = setPosition(element: element, position: frame.origin)
+            _ = setSize(element: element, size: frame.size)
+            let finalPosOk = setPosition(element: element, position: frame.origin)
+            
+            lastAppliedFrames[id] = frame
+            return finalPosOk
         } else {
-            // First time applying frame
-            let sizeSuccess = setSize(element: element, size: frame.size)
+            // First time applying frame: origin first, then size, then origin
+            _ = setPosition(element: element, position: frame.origin)
+            _ = setSize(element: element, size: frame.size)
             let posSuccess = setPosition(element: element, position: frame.origin)
-            if let id = windowId, sizeSuccess && posSuccess {
+            if let id = windowId {
                 lastAppliedFrames[id] = frame
             }
-            return sizeSuccess && posSuccess
+            return posSuccess
         }
     }
     

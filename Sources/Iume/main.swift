@@ -31,12 +31,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !PermissionManager.shared.hasAccessibilityPermission {
             print("[Iume] Accessibility permission not granted yet. Prompting user...")
             PermissionManager.shared.promptForAccessibility()
+            statusBarController?.openSettings()
         } else {
             print("[Iume] Accessibility permission active. Strip layout online.")
         }
-        
-        // Open Settings window to provide visible interactive GUI
-        statusBarController?.openSettings()
     }
     
     func applicationWillTerminate(_ notification: Notification) {

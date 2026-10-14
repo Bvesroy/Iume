@@ -122,13 +122,14 @@ public final class SettingsStore: ObservableObject {
         self.focusFollowsMouse = defaults.object(forKey: Keys.focusFollowsMouse) as? Bool ?? false
         
         let defaultExclusions = [
-            "com.apple.finder", // Finder desktop/popovers handled separately
             "com.apple.notificationcenterui",
             "com.apple.controlcenter",
             "com.apple.Spotlight",
             "com.apple.SystemSettings" // Small modal utility
         ]
-        self.excludedBundleIdentifiers = defaults.stringArray(forKey: Keys.excludedBundleIdentifiers) ?? defaultExclusions
+        var saved = defaults.stringArray(forKey: Keys.excludedBundleIdentifiers) ?? defaultExclusions
+        saved.removeAll { $0 == "com.apple.finder" }
+        self.excludedBundleIdentifiers = saved
     }
     
     public func resetToDefaults() {
@@ -147,7 +148,6 @@ public final class SettingsStore: ObservableObject {
         showFocusBorder = false
         focusFollowsMouse = false
         excludedBundleIdentifiers = [
-            "com.apple.finder",
             "com.apple.notificationcenterui",
             "com.apple.controlcenter",
             "com.apple.Spotlight",

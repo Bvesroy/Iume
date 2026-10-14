@@ -30,8 +30,20 @@ public final class ScrollController {
     
     fileprivate var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
+    private var isFrameUpdatePending = false
     
     public init() {}
+    
+    private func notifyOffsetChanged() {
+        guard !isFrameUpdatePending else { return }
+        isFrameUpdatePending = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.isFrameUpdatePending = false
+            self.onViewportOffsetChanged?(self.currentOffset)
+            self.onScrollActivity?(self.currentOffset, self.maxOffset, self.currentVelocity)
+        }
+    }
     
     // MARK: - Direct Offset Update
     
@@ -139,8 +151,7 @@ public final class ScrollController {
         }
         
         currentOffset = newOffset
-        onViewportOffsetChanged?(currentOffset)
-        onScrollActivity?(currentOffset, maxOffset, currentVelocity)
+        notifyOffsetChanged()
         
         // Debounce settle timer (130ms)
         settleTimer?.invalidate()
@@ -150,9 +161,11 @@ public final class ScrollController {
             }
         }
         
-        // Gesture ended or momentum ended
-        // 4 = Ended, 8 = Cancelled
+        // Gesture ended or momentum ended (4 = Ended, 8 = Cancelled)
         if phase == 4 || phase == 8 || momentumPhase == 4 {
+            isFrameUpdatePending = false
+            onViewportOffsetChanged?(currentOffset)
+            onScrollActivity?(currentOffset, maxOffset, currentVelocity)
             settle()
         }
     }

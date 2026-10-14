@@ -118,14 +118,17 @@ public final class WorkspaceManager: ObservableObject {
                 registry.register(window: managed, axElement: axElement)
                 
                 if var ws = workspaces[targetDisplayId] {
-                    _ = layoutEngine.insertWindow(
-                        managed.id,
-                        into: &ws.columns,
-                        focusedColumnIndex: ws.focusedColumnIndex,
-                        policy: settings.insertionPolicy,
-                        visibleWidth: ws.displayGeometry.visibleFrame.width
-                    )
-                    workspaces[targetDisplayId] = ws
+                    let alreadyPresent = ws.columns.contains { $0.windowIds.contains(managed.id) }
+                    if !alreadyPresent {
+                        _ = layoutEngine.insertWindow(
+                            managed.id,
+                            into: &ws.columns,
+                            focusedColumnIndex: ws.focusedColumnIndex,
+                            policy: settings.insertionPolicy,
+                            visibleWidth: ws.displayGeometry.visibleFrame.width
+                        )
+                        workspaces[targetDisplayId] = ws
+                    }
                 }
             }
         }
@@ -148,6 +151,12 @@ public final class WorkspaceManager: ObservableObject {
         appDiscovery.onAppLaunched = { [weak self] app in
             guard let self = self, self.settings.isEnabled else { return }
             self.observer.observe(pid: app.processIdentifier)
+            for delay in [0.15, 0.45, 1.0] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                    guard let self = self, self.settings.isEnabled else { return }
+                    self.registerWindowsForApp(app)
+                }
+            }
         }
         
         appDiscovery.onAppTerminated = { [weak self] pid in
@@ -243,12 +252,64 @@ public final class WorkspaceManager: ObservableObject {
         displayManager.onDisplaysChanged = { [weak self] displays in
             self?.handleDisplaysChanged(displays)
         }
+        
+        // Dynamic permission state changes
+        permissions.onPermissionStateChanged = { [weak self] granted in
+            guard let self = self, granted else { return }
+            self.diagnostics.log(category: "Permissions", message: "Accessibility permission granted! Bootstrapping windows...")
+            self.discoverAndRegisterWindows()
+            self.shortcutManager.registerDefaultShortcuts()
+            self.scrollController.startEventTap()
+            self.applyLayout(animated: false)
+        }
     }
     
     // MARK: - Action Handlers
     
-    private func handleWindowCreated(element: AXUIElement, pid: pid_t) {
-        guard discovery.isEligibleWindow(element) else { return }
+    public func registerWindowsForApp(_ app: NSRunningApplication) {
+        guard let bundleId = app.bundleIdentifier,
+              !settings.excludedBundleIdentifiers.contains(bundleId),
+              let primary = displayManager.primaryDisplay() else { return }
+        
+        let targetDisplayId = primary.id
+        let discovered = discovery.discoverWindows(for: app.processIdentifier, bundleId: bundleId, appName: app.localizedName ?? "App")
+        
+        var addedAny = false
+        for (managed, axElement) in discovered {
+            if registry.get(windowId: managed.id) != nil { continue }
+            registry.register(window: managed, axElement: axElement)
+            
+            if var ws = workspaces[targetDisplayId] {
+                let alreadyPresent = ws.columns.contains { $0.windowIds.contains(managed.id) }
+                if !alreadyPresent {
+                    let colIdx = layoutEngine.insertWindow(
+                        managed.id,
+                        into: &ws.columns,
+                        focusedColumnIndex: ws.focusedColumnIndex,
+                        policy: settings.insertionPolicy,
+                        visibleWidth: ws.displayGeometry.visibleFrame.width
+                    )
+                    ws.focusedColumnIndex = colIdx
+                    workspaces[targetDisplayId] = ws
+                    registry.focusedId = managed.id
+                    addedAny = true
+                }
+            }
+        }
+        if addedAny {
+            applyLayout(animated: true)
+        }
+    }
+    
+    private func handleWindowCreated(element: AXUIElement, pid: pid_t, retry: Int = 0) {
+        if !discovery.isEligibleWindow(element) {
+            if retry < 3 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                    self?.handleWindowCreated(element: element, pid: pid, retry: retry + 1)
+                }
+            }
+            return
+        }
         guard let app = NSRunningApplication(processIdentifier: pid),
               let bundleId = app.bundleIdentifier else { return }
         
@@ -258,6 +319,9 @@ public final class WorkspaceManager: ObservableObject {
         let frame = discovery.copyFrame(element) ?? CGRect(x: 100, y: 100, width: 800, height: 600)
         let rawId = UInt64(CFHash(element))
         let windowId = WindowId(pid: pid, rawId: rawId)
+        
+        // Prevent duplicate registration
+        if registry.get(windowId: windowId) != nil { return }
         
         let managed = ManagedWindow(
             id: windowId,
@@ -271,6 +335,9 @@ public final class WorkspaceManager: ObservableObject {
         registry.register(window: managed, axElement: element)
         
         guard var ws = workspaces[activeDisplayId] else { return }
+        let alreadyPresent = ws.columns.contains { $0.windowIds.contains(windowId) }
+        guard !alreadyPresent else { return }
+        
         let newColIdx = layoutEngine.insertWindow(
             windowId,
             into: &ws.columns,
@@ -447,7 +514,7 @@ public final class WorkspaceManager: ObservableObject {
     private func applyPhysicalWindowPositions(workspace: DisplayWorkspace) {
         observer.isPerformingProgrammaticUpdate = true
         defer {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                 self.observer.isPerformingProgrammaticUpdate = false
             }
         }
@@ -464,7 +531,7 @@ public final class WorkspaceManager: ObservableObject {
         var focusedWindowFrame: CGRect? = nil
         for (winId, targetFrame) in computation.targetFrames {
             if let ax = registry.getAXElement(windowId: winId) {
-                observer.recordExpectedFrame(targetFrame, for: winId)
+                observer.recordExpectedFrame(targetFrame, for: winId, duration: 0.40)
                 controller.setFrame(element: ax, frame: targetFrame, windowId: winId)
                 registry.update(windowId: winId) { $0.frame = targetFrame }
                 
@@ -493,20 +560,31 @@ public final class WorkspaceManager: ObservableObject {
     }
     
     public func reconcileExternalFrameChange(windowId: WindowId, newFrame: CGRect) {
+        // Only reconcile user-intended resize if this window is focused (or no focused window set)
+        if let focused = registry.focusedId, focused != windowId {
+            return
+        }
         guard let win = registry.get(windowId: windowId) else { return }
         guard var ws = workspaces[activeDisplayId] else { return }
         
-        let widthChanged = abs(newFrame.width - win.frame.width) > 4.0
+        let visibleFrame = ws.displayGeometry.visibleFrame
+        // Ensure window is on-screen (not parked or offscreen)
+        guard newFrame.minX >= visibleFrame.minX - 10 && newFrame.maxX <= visibleFrame.maxX + 10 else {
+            return
+        }
+        
+        let widthChanged = abs(newFrame.width - win.frame.width) > 25.0
+        guard widthChanged else { return }
+        
+        let clampedWidth = max(layoutEngine.defaultMinimumColumnWidth, min(visibleFrame.width, newFrame.width))
         
         registry.update(windowId: windowId) {
             $0.frame = newFrame
-            if widthChanged {
-                $0.preferredWidth = newFrame.width
-            }
+            $0.preferredWidth = clampedWidth
         }
         
-        if widthChanged, let colIdx = ws.columns.firstIndex(where: { $0.windowIds.contains(windowId) }) {
-            ws.columns[colIdx].width = newFrame.width
+        if let colIdx = ws.columns.firstIndex(where: { $0.windowIds.contains(windowId) }) {
+            ws.columns[colIdx].width = clampedWidth
             workspaces[activeDisplayId] = ws
         }
         
