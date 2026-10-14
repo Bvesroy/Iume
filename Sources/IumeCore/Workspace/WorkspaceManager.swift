@@ -436,8 +436,11 @@ public final class WorkspaceManager: ObservableObject {
                 duration: settings.animationDuration
             )
         } else {
+            var updatedWs = ws
+            updatedWs.viewportOffset = computation.targetViewportOffset
+            workspaces[activeDisplayId] = updatedWs
             scrollController.setOffset(computation.targetViewportOffset, maxOffset: maxOffset)
-            applyPhysicalWindowPositions(workspace: ws)
+            applyPhysicalWindowPositions(workspace: updatedWs)
         }
     }
     

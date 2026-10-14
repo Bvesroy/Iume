@@ -300,5 +300,45 @@ struct LayoutEngineTests {
         engine.maximizeColumn(at: 0, columns: &cols, visibleWidth: 1200)
         #expect(cols[0].width == 1200)
     }
+    
+    @Test("Continuous scrolling viewport shifts window frames horizontally")
+    func testContinuousScrollingViewportShift() {
+        let win1 = WindowId(pid: 1, rawId: 1)
+        let win2 = WindowId(pid: 1, rawId: 2)
+        let cols = [
+            WindowColumn(windowIds: [win1], width: 600), // 0..600
+            WindowColumn(windowIds: [win2], width: 600)  // 610..1210
+        ]
+        let windows: [WindowId: ManagedWindow] = [
+            win1: ManagedWindow(id: win1, pid: 1, bundleIdentifier: "a", appName: "A", title: "W1", frame: .zero),
+            win2: ManagedWindow(id: win2, pid: 1, bundleIdentifier: "b", appName: "B", title: "W2", frame: .zero)
+        ]
+        
+        // Initial offset 0
+        let comp0 = engine.computeLayout(
+            columns: cols,
+            windows: windows,
+            focusedColumnIndex: 0,
+            visibleFrame: CGRect(x: 0, y: 0, width: 1000, height: 800),
+            viewportOffset: 0,
+            layoutMode: .scrollStrip
+        )
+        #expect(comp0.targetFrames[win1]!.origin.x == 0)
+        #expect(comp0.targetFrames[win2]!.origin.x == 610)
+        
+        // Continuous scroll offset 150 (simulating 2-finger swipe right)
+        let comp150 = engine.computeLayout(
+            columns: cols,
+            windows: windows,
+            focusedColumnIndex: 0,
+            visibleFrame: CGRect(x: 0, y: 0, width: 1000, height: 800),
+            viewportOffset: 150,
+            layoutMode: .scrollStrip
+        )
+        // win1 shifts left by 150 pt: 0 - 150 = -150
+        #expect(comp150.targetFrames[win1]!.origin.x == -150)
+        // win2 shifts left by 150 pt: 610 - 150 = 460
+        #expect(comp150.targetFrames[win2]!.origin.x == 460)
+    }
 }
 

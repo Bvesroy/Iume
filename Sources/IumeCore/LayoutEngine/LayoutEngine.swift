@@ -146,7 +146,7 @@ public struct LayoutEngine: Sendable {
         
         for (colIndex, column) in columns.enumerated() {
             let colStripX = stripOffsets[colIndex]
-            let colScreenX = visibleFrame.origin.x + colStripX - idealViewportOffset
+            let colScreenX = visibleFrame.origin.x + colStripX - viewportOffset
             let colWidth = column.width
             
             let managedInColumn = column.windowIds.compactMap { windows[$0] }.filter { !$0.isFloating && !$0.isMinimized }
