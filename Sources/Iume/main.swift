@@ -27,6 +27,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Start workspace orchestration
         WorkspaceManager.shared.start()
         
+        // Listen for kickstart triggers from secondary instances
+        DistributedNotificationCenter.default().addObserver(
+            forName: NSNotification.Name("com.iume.kickstart"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            MainActor.assumeIsolated {
+                print("[Iume] Received external kickstart trigger. Arranging windows...")
+                WorkspaceManager.shared.kickstart()
+            }
+        }
+        
         // Show Launch & Kickstart Control Panel so user can immediately kickstart window arrangement
         LaunchHUDController.shared.show()
         
@@ -55,7 +67,17 @@ let lockFd = open(lockFilePath, O_CREAT | O_RDWR, 0o644)
 if lockFd >= 0 {
     let rc = flock(lockFd, LOCK_EX | LOCK_NB)
     if rc != 0 {
-        print("[Iume] Another instance is already running. Exiting.")
+        if CommandLine.arguments.contains("--kickstart") || CommandLine.arguments.contains("-k") {
+            print("[Iume] Sending kickstart trigger to active Iume instance...")
+            DistributedNotificationCenter.default().postNotificationName(
+                NSNotification.Name("com.iume.kickstart"),
+                object: nil,
+                userInfo: nil,
+                deliverImmediately: true
+            )
+        } else {
+            print("[Iume] Another instance is already running. Exiting.")
+        }
         exit(0)
     }
 }

@@ -1395,6 +1395,11 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
            let parentWindow = parentWindowRef,
            let parentWinId = registry.findWindowId(matchingAXElement: (parentWindow as! AXUIElement)) {
             let targetDispId = displayId(containing: parentWinId) ?? activeDisplayId
+            if let suppressedId = suppressedFocusNotificationWindowId,
+               ProcessInfo.processInfo.systemUptime < suppressedFocusExpiration,
+               parentWinId == suppressedId {
+                return
+            }
             guard var ws = workspaces[targetDispId] else { return }
             if let colIdx = ws.columns.firstIndex(where: { $0.windowIds.contains(parentWinId) }) {
                 if let tabIdx = ws.columns[colIdx].windowIds.firstIndex(of: parentWinId) {

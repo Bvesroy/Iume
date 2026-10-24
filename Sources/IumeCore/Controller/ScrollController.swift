@@ -37,16 +37,15 @@ private typealias MTRegisterContactFrameCallbackFunc = @convention(c) (MTDeviceR
 private typealias MTDeviceStartFunc = @convention(c) (MTDeviceRef, Int32) -> Void
 private typealias MTDeviceStopFunc = @convention(c) (MTDeviceRef) -> Void
 
-private final class DisplayLinkTarget: NSObject, @unchecked Sendable {
+@MainActor
+private final class DisplayLinkTarget: NSObject {
     weak var controller: ScrollController?
     init(_ controller: ScrollController) {
         self.controller = controller
     }
     @objc func onTick(_ link: CADisplayLink) {
         let ts = link.targetTimestamp
-        MainActor.assumeIsolated {
-            controller?.displayLinkFired(timestamp: ts)
-        }
+        controller?.displayLinkFired(timestamp: ts)
     }
 }
 
@@ -202,6 +201,7 @@ public final class ScrollController {
     
     public private(set) var isActivelyScrolling: Bool = false
     public private(set) var gestureOwner: GestureOwner = .undecided
+    private var lastScrollEventTime: CFTimeInterval = 0
     
     fileprivate var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
@@ -1089,13 +1089,35 @@ public final class ScrollController {
         let hasOption = flags.contains(.maskAlternate)
         let hasControl = flags.contains(.maskControl)
         
+        let now = CACurrentMediaTime()
+        // Watchdog: If 150ms elapsed without scroll events, reset stale gesture owner so scroll never locks out
+        if lastScrollEventTime > 0 && (now - lastScrollEventTime) > 0.15 {
+            gestureOwner = .undecided
+            isActivelyScrolling = false
+        }
+        lastScrollEventTime = now
+        
         // Touch began / touch may begin resets gesture ownership decision
         if phase == 1 || phase == 32 {
             gestureOwner = .undecided
         }
         
-        // If already latched to an owner for this gesture, stick with that decision
+        // Explicit modifier shortcuts always override app ownership
+        if hasOption || hasControl {
+            gestureOwner = .strip
+            return true
+        }
+        
+        // If already latched to an owner for this gesture, check completion
         if gestureOwner == .strip {
+            let absX = abs(dx)
+            let absY = abs(dy)
+            // If movement is predominantly vertical and no modifier is held, strip releases ownership to app
+            if absY > absX * 1.5 && absY > 2.0 && !hasOption && !hasControl {
+                gestureOwner = .app
+                isActivelyScrolling = false
+                return false
+            }
             if phase == 4 || phase == 8 {
                 // Finger lifted: only unlatch if no momentum stream will follow
                 if momentumPhase == 4 || (momentumPhase == 0 && (!settings.momentumScrolling || abs(currentVelocity) <= 30)) {
@@ -1111,18 +1133,27 @@ public final class ScrollController {
             if phase == 4 || phase == 8 || momentumPhase == 4 {
                 gestureOwner = .undecided
             }
+            // Allow breaking out of .app if the user switches decisively to horizontal scrolling
+            let absX = abs(dx)
+            let absY = abs(dy)
+            if absX > 2.0 && absX > absY * 2.5 {
+                gestureOwner = .strip
+                return true
+            }
             return false
         }
         
         let shouldStart: Bool
         switch settings.scrollTriggerMode {
         case .seamlessHorizontal:
-            if hasOption || hasControl {
+            let absX = abs(dx)
+            let absY = abs(dy)
+            if isActivelyScrolling && gestureOwner == .strip {
                 shouldStart = true
             } else {
-                let absX = abs(dx)
-                let absY = abs(dy)
-                shouldStart = absX > (absY * 2.0) && absX >= 1.2
+                // Natural trackpad gesture detection: recognize natural start (> 0.2 pt)
+                // while strictly rejecting vertical scrolling (absY > absX)
+                shouldStart = (absX > absY * 1.15 && absX >= 0.20) || (absX >= 0.60 && absY < 0.40)
             }
             
         case .withOption:
@@ -1135,11 +1166,11 @@ public final class ScrollController {
             shouldStart = true
         }
         
-        // Latch ownership only once directional intent is clear (avoid premature .app latching on phase == 1 when dx == 0, dy == 0)
+        // Latch ownership once directional intent is clear
         if phase == 1 || phase == 2 || momentumPhase == 1 || momentumPhase == 2 {
             if shouldStart {
                 gestureOwner = .strip
-            } else if abs(dy) > 1.5 && abs(dy) > abs(dx) * 1.2 {
+            } else if abs(dy) > 1.2 && abs(dy) > abs(dx) * 1.2 {
                 gestureOwner = .app
             }
         }
@@ -1181,14 +1212,26 @@ public final class ScrollController {
             let flags = event.flags
             
             if controller.shouldInterceptScroll(dx: dx, dy: dy, flags: flags, phase: phase, momentumPhase: momentumPhase) {
-                MainActor.assumeIsolated {
-                    controller.enqueueScroll(
-                        dx: dx,
-                        dy: dy,
-                        phase: phase,
-                        momentumPhase: momentumPhase,
-                        flags: flags
-                    )
+                if Thread.isMainThread {
+                    MainActor.assumeIsolated {
+                        controller.enqueueScroll(
+                            dx: dx,
+                            dy: dy,
+                            phase: phase,
+                            momentumPhase: momentumPhase,
+                            flags: flags
+                        )
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        controller.enqueueScroll(
+                            dx: dx,
+                            dy: dy,
+                            phase: phase,
+                            momentumPhase: momentumPhase,
+                            flags: flags
+                        )
+                    }
                 }
                 return nil // Consume event immediately (< 5 microseconds), non-blocking
             }

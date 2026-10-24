@@ -179,6 +179,13 @@ private extension Array where Element == ManagedWindow {
     }
 }
 
+/// Specialized NSPanel that never attempts to become key or main window,
+/// preventing AppKit key-window tracking warnings and runloop freezes when clicked.
+final class NonActivatingOverlayPanel: NSPanel {
+    override var canBecomeKey: Bool { false }
+    override var canBecomeMain: Bool { false }
+}
+
 /// Interactive 28pt Chrome-style tab strip displayed above a tabbed column.
 /// Supports click-to-switch, close, add (new or existing window), drag reorder,
 /// drag-out-to-detach and pinning a single-window group open.
@@ -403,7 +410,7 @@ public final class TabBarOverlayController {
     private func getOrCreatePanel(for columnId: UUID) -> NSPanel {
         if let existing = panels[columnId] { return existing }
         
-        let panel = NSPanel(
+        let panel = NonActivatingOverlayPanel(
             contentRect: .zero,
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,

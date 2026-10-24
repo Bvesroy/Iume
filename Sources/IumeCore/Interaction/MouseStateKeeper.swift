@@ -34,6 +34,7 @@ public final class MouseStateKeeper {
     
     private weak var delegate: MouseStateKeeperDelegate?
     private var globalMonitor: Any?
+    private var initialClickLocation: CGPoint?
     
     public init(delegate: MouseStateKeeperDelegate? = nil) {
         self.delegate = delegate
@@ -66,6 +67,7 @@ public final class MouseStateKeeper {
     }
     
     public func handleMouseDown() {
+        initialClickLocation = NSEvent.mouseLocation
         state = .clicking(atTime: Date())
         lastClick = Date()
     }
@@ -75,11 +77,20 @@ public final class MouseStateKeeper {
         case .moving, .resizing:
             break
         case .pointing, .clicking, .dragging, .doneDragging:
-            state = .dragging
+            if let start = initialClickLocation {
+                let current = NSEvent.mouseLocation
+                let dist = hypot(current.x - start.x, current.y - start.y)
+                if dist >= 8.0 {
+                    state = .dragging
+                }
+            } else {
+                state = .dragging
+            }
         }
     }
     
     public func handleMouseUp() {
+        initialClickLocation = nil
         switch state {
         case .dragging:
             state = .doneDragging(atTime: Date(), windowId: nil, initialFrame: nil)
