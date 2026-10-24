@@ -938,6 +938,29 @@ public struct SettingsView: View {
                         }
                     }
                     
+                    if settings.showMinimapHUD {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("HUD Instrument Style")
+                                .font(.body)
+                                .fontWeight(.medium)
+                            
+                            Picker("", selection: $settings.hudStyle) {
+                                ForEach(MinimapHUDStyle.allCases, id: \.self) { style in
+                                    Text(style.displayName).tag(style)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            
+                            Text(settings.hudStyle.subtitle)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.leading, 8)
+                        
+                        Toggle("Keep HUD Always Visible", isOn: $settings.hudAlwaysVisible)
+                            .padding(.leading, 8)
+                    }
+                    
                     Divider()
                     
                     Toggle(isOn: $settings.showFocusBorder) {
@@ -979,6 +1002,73 @@ public struct SettingsView: View {
                     Toggle("Mouse Follows Focus", isOn: $settings.mouseFollowsFocus)
                     Toggle("Focus Follows Mouse Hover", isOn: $settings.focusFollowsMouse)
                     Toggle("Float Small Windows (< 500pt dialogs & utilities)", isOn: $settings.floatSmallWindows)
+                }
+                .padding(16)
+                .background(settingsCardBackground)
+                
+                // Endless Loop Mode & Audio Card
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
+                            .font(.title3)
+                            .foregroundColor(.accentColor)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Endless Loop Mode & Audio")
+                                .font(.headline)
+                            Text("Wrap strip seamlessly into a continuous loop and tune audio cues.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                    }
+                    
+                    Toggle(isOn: $settings.loopMode) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Endless Loop Mode (Continuous Wrap)")
+                                .font(.body)
+                                .fontWeight(.medium)
+                            Text("Desktop strip wraps around continuously so the last window connects back to the first.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .toggleStyle(.switch)
+                    
+                    Divider()
+                    
+                    Toggle(isOn: $settings.loopSeamSoundEnabled) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Loop Seam Lap Sound")
+                                .font(.body)
+                            Text("Plays a subtle wooden mechanical tick when completing a full strip loop.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    Toggle(isOn: $settings.hudSoundEnabled) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Tactile HUD Sound Effects")
+                                .font(.body)
+                            Text("Audio clicks and feedback when snapping windows and scrolling.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    if settings.hudSoundEnabled {
+                        HStack {
+                            Text("Feedback Volume")
+                                .font(.body)
+                            Spacer()
+                            Slider(value: $settings.hudSoundVolume, in: 0.05...1.0)
+                                .frame(width: 140)
+                            Text("\(Int(settings.hudSoundVolume * 100))%")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .frame(width: 36, alignment: .trailing)
+                        }
+                    }
                 }
                 .padding(16)
                 .background(settingsCardBackground)

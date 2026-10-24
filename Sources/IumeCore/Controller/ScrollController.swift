@@ -37,15 +37,22 @@ private typealias MTRegisterContactFrameCallbackFunc = @convention(c) (MTDeviceR
 private typealias MTDeviceStartFunc = @convention(c) (MTDeviceRef, Int32) -> Void
 private typealias MTDeviceStopFunc = @convention(c) (MTDeviceRef) -> Void
 
-@MainActor
-private final class DisplayLinkTarget: NSObject {
+private final class DisplayLinkTarget: NSObject, @unchecked Sendable {
     weak var controller: ScrollController?
     init(_ controller: ScrollController) {
         self.controller = controller
     }
     @objc func onTick(_ link: CADisplayLink) {
         let ts = link.targetTimestamp
-        controller?.displayLinkFired(timestamp: ts)
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                controller?.displayLinkFired(timestamp: ts)
+            }
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.controller?.displayLinkFired(timestamp: ts)
+            }
+        }
     }
 }
 
@@ -1110,14 +1117,6 @@ public final class ScrollController {
         
         // If already latched to an owner for this gesture, check completion
         if gestureOwner == .strip {
-            let absX = abs(dx)
-            let absY = abs(dy)
-            // If movement is predominantly vertical and no modifier is held, strip releases ownership to app
-            if absY > absX * 1.5 && absY > 2.0 && !hasOption && !hasControl {
-                gestureOwner = .app
-                isActivelyScrolling = false
-                return false
-            }
             if phase == 4 || phase == 8 {
                 // Finger lifted: only unlatch if no momentum stream will follow
                 if momentumPhase == 4 || (momentumPhase == 0 && (!settings.momentumScrolling || abs(currentVelocity) <= 30)) {
@@ -1213,15 +1212,13 @@ public final class ScrollController {
             
             if controller.shouldInterceptScroll(dx: dx, dy: dy, flags: flags, phase: phase, momentumPhase: momentumPhase) {
                 if Thread.isMainThread {
-                    MainActor.assumeIsolated {
-                        controller.enqueueScroll(
-                            dx: dx,
-                            dy: dy,
-                            phase: phase,
-                            momentumPhase: momentumPhase,
-                            flags: flags
-                        )
-                    }
+                    controller.enqueueScroll(
+                        dx: dx,
+                        dy: dy,
+                        phase: phase,
+                        momentumPhase: momentumPhase,
+                        flags: flags
+                    )
                 } else {
                     DispatchQueue.main.async {
                         controller.enqueueScroll(

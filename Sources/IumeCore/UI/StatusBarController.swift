@@ -239,6 +239,33 @@ public final class StatusBarController: NSObject {
         retileItem.target = self
         menu.addItem(retileItem)
         
+        // Loop Mode (Endless Wrap)
+        let loopItem = NSMenuItem(title: "🎡 Loop Mode (Endless Wrap)", action: #selector(toggleLoopMode), keyEquivalent: "")
+        loopItem.state = settings.loopMode ? .on : .off
+        loopItem.target = self
+        menu.addItem(loopItem)
+        
+        // HUD Instrument Style
+        let hudMenu = NSMenu()
+        for style in MinimapHUDStyle.allCases {
+            let item = NSMenuItem(title: style.displayName, action: #selector(selectHUDStyle(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = style
+            if style == settings.hudStyle {
+                item.state = .on
+            }
+            hudMenu.addItem(item)
+        }
+        let hudSubmenuItem = NSMenuItem(title: "🎛️ HUD Instrument (\(settings.hudStyle.displayName))", action: nil, keyEquivalent: "")
+        hudSubmenuItem.submenu = hudMenu
+        menu.addItem(hudSubmenuItem)
+        
+        // Shortcut Cheatsheet
+        let cheatsheetItem = NSMenuItem(title: "⌨️ Keyboard Shortcuts Cheatsheet...", action: #selector(openCheatsheet), keyEquivalent: "/")
+        cheatsheetItem.keyEquivalentModifierMask = [.control, .option]
+        cheatsheetItem.target = self
+        menu.addItem(cheatsheetItem)
+        
         // Mac Setup & Conflict Checker
         let setupItem = NSMenuItem(title: "🛠️ Mac Setup & Conflict Checker...", action: #selector(StatusBarController.openMacSetup), keyEquivalent: "")
         setupItem.target = self
@@ -415,6 +442,23 @@ public final class StatusBarController: NSObject {
     @objc private func toggleCycleTabsBeforeColumns() {
         SettingsStore.shared.cycleTabsBeforeColumns.toggle()
         rebuildMenu()
+    }
+    
+    @objc private func toggleLoopMode() {
+        SettingsStore.shared.loopMode.toggle()
+        WorkspaceManager.shared.applyLayout(animated: true)
+        rebuildMenu()
+    }
+    
+    @objc private func selectHUDStyle(_ sender: NSMenuItem) {
+        if let style = sender.representedObject as? MinimapHUDStyle {
+            SettingsStore.shared.hudStyle = style
+            rebuildMenu()
+        }
+    }
+    
+    @objc private func openCheatsheet() {
+        ShortcutCheatsheetController.shared.toggle()
     }
     
     @objc public func openSettings() {
