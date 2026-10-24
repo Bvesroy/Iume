@@ -239,7 +239,6 @@ public final class WindowDiscovery {
                 cgWindowLayer: cgLayer,
                 userRules: userRules
             )
-            
             guard disposition != .ignoredSystemElement else { continue }
             
             if let matched = matchedCandidate {

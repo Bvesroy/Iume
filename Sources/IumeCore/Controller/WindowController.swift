@@ -618,7 +618,7 @@ public final class WindowController: @unchecked Sendable {
             lock.unlock()
         }
         
-        AXUIElementSetMessagingTimeout(element, 0.005)
+        AXUIElementSetMessagingTimeout(element, 0.04)
         var point = rounded
         guard let value = AXValueCreate(.cgPoint, &point) else { return false }
         let err = AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, value)

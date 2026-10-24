@@ -387,13 +387,18 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
         // Self-healing watchdog: re-ensure event tap is active
         scrollController.startEventTap()
         
+        guard let currentWs = workspaces[activeDisplayId] else { return }
+        let currentWindowIds = Set(currentWs.columns.flatMap { $0.windowIds })
+        
         let apps = appDiscovery.discoverEligibleApplications(excludedBundleIds: settings.excludedBundleIdentifiers)
         for app in apps {
             let pid = app.id
             observer.observe(pid: pid)
             let discovered = discovery.discoverWindows(for: pid, bundleId: app.bundleIdentifier, appName: app.localizedName)
             for (managed, axElement) in discovered {
-                if registry.get(windowId: managed.id) == nil {
+                guard !managed.isFloating && !managed.isMinimized else { continue }
+                if !currentWindowIds.contains(managed.id) {
+                    registry.register(window: managed, axElement: axElement)
                     observer.observeWindow(element: axElement, pid: pid)
                     handleWindowCreated(element: axElement, pid: pid)
                 }
@@ -651,6 +656,18 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
         }
         
         // Scroll updates (hardware display-link paced once per display refresh)
+        // Query dynamic max offset on scroll start
+        scrollController.onQueryMaxOffset = { [weak self] in
+            guard let self = self, let ws = self.workspaces[self.activeDisplayId], !ws.columns.isEmpty else { return 0.0 }
+            let totalWins = ws.columns.reduce(0) { $0 + $1.windowIds.count }
+            let isBuiltin = CGDisplayIsBuiltin(ws.displayGeometry.id) == 1
+            let collapseMargins = (self.settings.smartWindowMargins && totalWins <= 1) || (self.settings.disablePaddingOnBuiltinDisplay && isBuiltin)
+            let effectiveMargins = collapseMargins ? EdgeMargins.zero : self.settings.edgeMargins
+            let effectiveGap = (self.settings.smartWindowMargins && totalWins <= 1) ? 0.0 : CGFloat(self.settings.windowGap)
+            let usableWidth = max(200, ws.displayGeometry.visibleFrame.width - effectiveMargins.left - effectiveMargins.right)
+            return self.layoutEngine.maxScrollOffset(columns: ws.columns, visibleWidth: usableWidth, centerMode: self.settings.centerMode, gap: effectiveGap)
+        }
+        
         scrollController.onViewportOffsetChanged = { [weak self] newOffset in
             guard let self = self else { return }
             guard var ws = self.workspaces[self.activeDisplayId] else { return }
@@ -2962,9 +2979,15 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
         guard !settings.disabledDisplayIds.contains(ws.displayGeometry.id) else { return }
         
         let isFreeform = settings.freeformScroll || !settings.snapToColumn
-        let effectiveLayoutMode: LayoutMode = isFreeform ? .manualLayout : settings.layoutMode
+        let effectiveLayoutMode: LayoutMode = settings.layoutMode
         
+        let totalWins = ws.columns.reduce(0) { $0 + $1.windowIds.count }
         let isBuiltin = CGDisplayIsBuiltin(ws.displayGeometry.id) == 1
+        let collapseMargins = (settings.smartWindowMargins && totalWins <= 1) || (settings.disablePaddingOnBuiltinDisplay && isBuiltin)
+        let effectiveMargins = collapseMargins ? EdgeMargins.zero : settings.edgeMargins
+        let effectiveGap = (settings.smartWindowMargins && totalWins <= 1) ? 0.0 : CGFloat(settings.windowGap)
+        let usableWidth = max(200, ws.displayGeometry.visibleFrame.width - effectiveMargins.left - effectiveMargins.right)
+        
         let computation = layoutEngine.computeLayout(
             columns: ws.columns,
             windows: registry.windowMap(),
@@ -2974,18 +2997,17 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
             layoutMode: effectiveLayoutMode,
             centerMode: settings.centerMode,
             edgeMargins: settings.edgeMargins,
+            gap: effectiveGap,
             isBuiltinDisplay: isBuiltin,
             disablePaddingOnBuiltinDisplay: settings.disablePaddingOnBuiltinDisplay,
-            smartWindowMargins: settings.smartWindowMargins
+            smartWindowMargins: settings.smartWindowMargins,
+            loopMode: settings.loopMode
         )
         
-        let totalWins = ws.columns.reduce(0) { $0 + $1.windowIds.count }
-        let collapseMargins = (settings.smartWindowMargins && totalWins <= 1) || (settings.disablePaddingOnBuiltinDisplay && isBuiltin)
-        let effectiveMargins = collapseMargins ? EdgeMargins.zero : settings.edgeMargins
-        let effectiveGap = (settings.smartWindowMargins && totalWins <= 1) ? 0.0 : CGFloat(settings.windowGap)
-        let usableWidth = max(200, ws.displayGeometry.visibleFrame.width - effectiveMargins.left - effectiveMargins.right)
         let maxOffset = layoutEngine.maxScrollOffset(columns: ws.columns, visibleWidth: usableWidth, centerMode: settings.centerMode, gap: effectiveGap)
         scrollController.maxOffset = maxOffset
+        scrollController.isLoopModeEnabled = settings.loopMode
+        scrollController.loopPeriod = layoutEngine.cyclicStripPeriod(columns: ws.columns, gap: effectiveGap)
         
         // Update Minimap HUD (strictly throttled & conditioned on user setting)
         if settings.showMinimapHUD {
@@ -3049,9 +3071,10 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
             }
         }
         
-        let isFreeform = settings.freeformScroll || !settings.snapToColumn
-        let effectiveLayoutMode: LayoutMode = isFreeform ? .manualLayout : settings.layoutMode
+        let effectiveLayoutMode: LayoutMode = settings.layoutMode
         let isBuiltin = CGDisplayIsBuiltin(workspace.displayGeometry.id) != 0
+        let totalWins = workspace.columns.reduce(0) { $0 + $1.windowIds.count }
+        let effectiveGap = (settings.smartWindowMargins && totalWins <= 1) ? 0.0 : CGFloat(settings.windowGap)
         let computation = layoutEngine.computeLayout(
             columns: workspace.columns,
             windows: registry.windowMap(),
@@ -3061,9 +3084,11 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
             layoutMode: effectiveLayoutMode,
             centerMode: settings.centerMode,
             edgeMargins: settings.edgeMargins,
+            gap: effectiveGap,
             isBuiltinDisplay: isBuiltin,
             disablePaddingOnBuiltinDisplay: settings.disablePaddingOnBuiltinDisplay,
-            smartWindowMargins: settings.smartWindowMargins
+            smartWindowMargins: settings.smartWindowMargins,
+            loopMode: settings.loopMode
         )
         
         let vis = workspace.displayGeometry.visibleFrame
@@ -3573,10 +3598,11 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
         activeSpaceId = newSpaceId
         let targetKey = currentWorkspaceKey
         
-        if let existingWs = spaceWorkspaces[targetKey] {
+        if let existingWs = spaceWorkspaces[targetKey], !existingWs.columns.isEmpty {
             workspaces[activeDisplayId] = existingWs
             applyLayout(animated: false)
         } else if let saved = persistence.load()?.spaces[targetKey.storageKey],
+                  !saved.columns.isEmpty,
                   let display = displayManager.activeDisplays.first(where: { $0.id == activeDisplayId }) {
             var ws = DisplayWorkspace(displayGeometry: display)
             let allWindows = registry.allWindows()
@@ -3596,6 +3622,11 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
             workspaces[activeDisplayId] = ws
             spaceWorkspaces[targetKey] = ws
             applyLayout(animated: false)
+            reconcileUnmanagedWindows()
+        }
+        
+        if workspaces[activeDisplayId]?.columns.isEmpty == true {
+            reconcileUnmanagedWindows()
         }
     }
     
