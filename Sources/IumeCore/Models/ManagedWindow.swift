@@ -10,6 +10,7 @@ public struct ManagedWindow: Identifiable, Equatable, Sendable {
     public var appName: String
     public var title: String
     public var frame: CGRect
+    public var initialFrame: CGRect
     public var isFloating: Bool
     public var isPinned: Bool
     public var isFocused: Bool
@@ -18,6 +19,7 @@ public struct ManagedWindow: Identifiable, Equatable, Sendable {
     public var minSize: CGSize?
     public var preferredWidth: CGFloat?
     public var lastSeen: Date
+    public var ownerPID: pid_t { pid }
     
     public init(
         id: WindowId,
@@ -26,6 +28,7 @@ public struct ManagedWindow: Identifiable, Equatable, Sendable {
         appName: String,
         title: String,
         frame: CGRect,
+        initialFrame: CGRect? = nil,
         isFloating: Bool = false,
         isPinned: Bool = false,
         isFocused: Bool = false,
@@ -41,6 +44,7 @@ public struct ManagedWindow: Identifiable, Equatable, Sendable {
         self.appName = appName
         self.title = title
         self.frame = frame
+        self.initialFrame = initialFrame ?? frame
         self.isFloating = isFloating
         self.isPinned = isPinned
         self.isFocused = isFocused

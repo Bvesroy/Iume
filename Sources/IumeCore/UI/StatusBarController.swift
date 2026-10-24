@@ -51,6 +51,16 @@ public final class StatusBarController: NSObject {
         kickstartItem.target = self
         menu.addItem(kickstartItem)
         
+        // ⏹️ Stop & Restore Action
+        let stopItem = NSMenuItem(
+            title: "⏹️ Stop & Restore Windows",
+            action: #selector(stopAction),
+            keyEquivalent: "s"
+        )
+        stopItem.keyEquivalentModifierMask = [.option, .shift]
+        stopItem.target = self
+        menu.addItem(stopItem)
+        
         let launchPanelItem = NSMenuItem(
             title: "🎛️ Open Slide Launch Control...",
             action: #selector(openLaunchPanel),
@@ -58,6 +68,15 @@ public final class StatusBarController: NSObject {
         )
         launchPanelItem.target = self
         menu.addItem(launchPanelItem)
+        
+        let overviewItem = NSMenuItem(
+            title: "🖼️ Panoramic Strip Overview & Preview",
+            action: #selector(openOverviewAction),
+            keyEquivalent: "o"
+        )
+        overviewItem.keyEquivalentModifierMask = [.control, .option]
+        overviewItem.target = self
+        menu.addItem(overviewItem)
         
         menu.addItem(NSMenuItem.separator())
         
@@ -107,6 +126,10 @@ public final class StatusBarController: NSObject {
         centerItem.target = self
         quickMenu.addItem(centerItem)
         
+        let sendNextItem = NSMenuItem(title: "Send to Next Display (⌃⌥N)", action: #selector(StatusBarController.sendToNextDisplayAction), keyEquivalent: "")
+        sendNextItem.target = self
+        quickMenu.addItem(sendNextItem)
+        
         quickMenu.addItem(NSMenuItem.separator())
         
         let minimapItem = NSMenuItem(title: "Strip Minimap HUD", action: #selector(toggleMinimap), keyEquivalent: "")
@@ -119,15 +142,112 @@ public final class StatusBarController: NSObject {
         focusBorderItem.target = self
         quickMenu.addItem(focusBorderItem)
         
+        let freeformItem = NSMenuItem(title: "Remain Where Left (Freeform)", action: #selector(toggleFreeformScroll), keyEquivalent: "")
+        freeformItem.state = settings.freeformScroll ? .on : .off
+        freeformItem.target = self
+        quickMenu.addItem(freeformItem)
+        
+        let wrapAroundItem = NSMenuItem(title: "Wrap-Around Focus Navigation", action: #selector(toggleWrapAroundFocus), keyEquivalent: "")
+        wrapAroundItem.state = settings.wrapAroundFocus ? .on : .off
+        wrapAroundItem.target = self
+        quickMenu.addItem(wrapAroundItem)
+        
+        let fullWidthRestoreItem = NSMenuItem(title: "Full Width Toggles Back to Ratio", action: #selector(toggleFullWidthRestoresRatio), keyEquivalent: "")
+        fullWidthRestoreItem.state = settings.fullWidthToggleRestoresRatio ? .on : .off
+        fullWidthRestoreItem.target = self
+        quickMenu.addItem(fullWidthRestoreItem)
+        
         let quickSubmenuItem = NSMenuItem(title: "Strip Controls", action: nil, keyEquivalent: "")
         quickSubmenuItem.submenu = quickMenu
         menu.addItem(quickSubmenuItem)
+        
+        // Browser-style Tabs submenu
+        let tabsMenu = NSMenu()
+        
+        let newTabItem = NSMenuItem(title: "New Tab in Active Group (⌃⌥⌘N)", action: #selector(newTabAction), keyEquivalent: "")
+        newTabItem.target = self
+        tabsMenu.addItem(newTabItem)
+        
+        let closeTabItem = NSMenuItem(title: "Close Active Tab (⌃⌥⇧W)", action: #selector(closeTabAction), keyEquivalent: "")
+        closeTabItem.target = self
+        tabsMenu.addItem(closeTabItem)
+        
+        tabsMenu.addItem(NSMenuItem.separator())
+        
+        let nextTabItem = NSMenuItem(title: "Next Tab (⌃⌥⌘])", action: #selector(nextTabAction), keyEquivalent: "")
+        nextTabItem.target = self
+        tabsMenu.addItem(nextTabItem)
+        
+        let prevTabItem = NSMenuItem(title: "Previous Tab (⌃⌥⌘[)", action: #selector(previousTabAction), keyEquivalent: "")
+        prevTabItem.target = self
+        tabsMenu.addItem(prevTabItem)
+        
+        tabsMenu.addItem(NSMenuItem.separator())
+        
+        let detachTabItem = NSMenuItem(title: "Detach Active Tab (⌃⌥⌘D)", action: #selector(detachTabAction), keyEquivalent: "")
+        detachTabItem.target = self
+        tabsMenu.addItem(detachTabItem)
+        
+        let ungroupTabsItem = NSMenuItem(title: "Ungroup All Tabs (⌃⌥⇧U)", action: #selector(ungroupTabsAction), keyEquivalent: "")
+        ungroupTabsItem.target = self
+        tabsMenu.addItem(ungroupTabsItem)
+        
+        let pinTabBarItem = NSMenuItem(title: "Keep Tab Bar Visible (⌃⌥⇧P)", action: #selector(toggleTabBarPinAction), keyEquivalent: "")
+        pinTabBarItem.target = self
+        tabsMenu.addItem(pinTabBarItem)
+        
+        tabsMenu.addItem(NSMenuItem.separator())
+        
+        let tabSameAppItem = NSMenuItem(title: "Group Same-App Windows (⌃⌥T)", action: #selector(tabSameAppAction), keyEquivalent: "")
+        tabSameAppItem.target = self
+        tabsMenu.addItem(tabSameAppItem)
+        
+        let tabAllAppsItem = NSMenuItem(title: "Group All Same-App Windows (⌃⌥⌘T)", action: #selector(tabAllAppsAction), keyEquivalent: "")
+        tabAllAppsItem.target = self
+        tabsMenu.addItem(tabAllAppsItem)
+        
+        tabsMenu.addItem(NSMenuItem.separator())
+        
+        let autoTabItem = NSMenuItem(title: "Auto-Tab New Same-App Windows", action: #selector(toggleAutoTabSameApp), keyEquivalent: "")
+        autoTabItem.state = settings.autoTabSameAppWindows ? .on : .off
+        autoTabItem.target = self
+        tabsMenu.addItem(autoTabItem)
+        
+        let cycleTabsItem = NSMenuItem(title: "Cycle Tabs Before Columns (⌃⌥Tab)", action: #selector(toggleCycleTabsBeforeColumns), keyEquivalent: "")
+        cycleTabsItem.state = settings.cycleTabsBeforeColumns ? .on : .off
+        cycleTabsItem.target = self
+        tabsMenu.addItem(cycleTabsItem)
+        
+        let tabsSubmenuItem = NSMenuItem(title: "Tabs", action: nil, keyEquivalent: "")
+        tabsSubmenuItem.submenu = tabsMenu
+        menu.addItem(tabsSubmenuItem)
+        
+        let edgeTogetherItem = NSMenuItem(title: "🧲 Apps Edge Together (Zero Gap)", action: #selector(toggleAppsEdgeTogether), keyEquivalent: "g")
+        edgeTogetherItem.keyEquivalentModifierMask = [.control, .option]
+        edgeTogetherItem.state = settings.appsEdgeTogether ? .on : .off
+        edgeTogetherItem.target = self
+        menu.addItem(edgeTogetherItem)
+        
+        let magneticItem = NSMenuItem(title: "🧲 Magnetic Window Snapping", action: #selector(toggleMagneticSnapping), keyEquivalent: "")
+        magneticItem.state = settings.edgeSnapping ? .on : .off
+        magneticItem.target = self
+        menu.addItem(magneticItem)
         
         // Re-tile / align windows
         let retileItem = NSMenuItem(title: "Re-align Strip", action: #selector(realignStrip), keyEquivalent: "r")
         retileItem.keyEquivalentModifierMask = [.option, .command]
         retileItem.target = self
         menu.addItem(retileItem)
+        
+        // Mac Setup & Conflict Checker
+        let setupItem = NSMenuItem(title: "🛠️ Mac Setup & Conflict Checker...", action: #selector(StatusBarController.openMacSetup), keyEquivalent: "")
+        setupItem.target = self
+        menu.addItem(setupItem)
+        
+        // Dump Diagnostics
+        let dumpItem = NSMenuItem(title: "📊 Dump Window Diagnostics...", action: #selector(StatusBarController.dumpDiagnosticsAction), keyEquivalent: "")
+        dumpItem.target = self
+        menu.addItem(dumpItem)
         
         menu.addItem(NSMenuItem.separator())
         
@@ -155,11 +275,16 @@ public final class StatusBarController: NSObject {
     
     // MARK: - Actions
     
-    @objc private func toggleEnabled() {
-        SettingsStore.shared.isEnabled.toggle()
+    @objc public func stopAction() {
+        LaunchHUDController.shared.performStop()
         rebuildMenu()
+    }
+    
+    @objc private func toggleEnabled() {
         if SettingsStore.shared.isEnabled {
-            WorkspaceManager.shared.applyLayout(animated: true)
+            stopAction()
+        } else {
+            kickstartAction()
         }
     }
     
@@ -202,6 +327,10 @@ public final class StatusBarController: NSObject {
         wsManager.scrollController.scrollTo(target: centerOffset, maxOffset: maxOffset, duration: SettingsStore.shared.animationDuration)
     }
     
+    @objc private func openOverviewAction() {
+        StripOverviewController.shared.toggle()
+    }
+    
     @objc private func toggleMinimap() {
         SettingsStore.shared.showMinimapHUD.toggle()
         rebuildMenu()
@@ -213,8 +342,85 @@ public final class StatusBarController: NSObject {
         WorkspaceManager.shared.applyLayout(animated: false)
     }
     
+    @objc private func toggleAppsEdgeTogether() {
+        SettingsStore.shared.appsEdgeTogether.toggle()
+        rebuildMenu()
+        WorkspaceManager.shared.reflowColumnsForGeometryChange()
+        WorkspaceManager.shared.applyLayout(animated: true)
+    }
+    
+    @objc private func toggleMagneticSnapping() {
+        SettingsStore.shared.edgeSnapping.toggle()
+        rebuildMenu()
+    }
+    
+    @objc private func toggleFreeformScroll() {
+        SettingsStore.shared.freeformScroll.toggle()
+        rebuildMenu()
+    }
+    
+    // MARK: - Tab Actions
+    
+    @objc private func newTabAction() {
+        WorkspaceManager.shared.addTabToFocusedColumn()
+    }
+    
+    @objc private func closeTabAction() {
+        WorkspaceManager.shared.closeActiveTab()
+    }
+    
+    @objc private func nextTabAction() {
+        WorkspaceManager.shared.cycleTabInFocusedColumn(forward: true)
+    }
+    
+    @objc private func previousTabAction() {
+        WorkspaceManager.shared.cycleTabInFocusedColumn(forward: false)
+    }
+    
+    @objc private func detachTabAction() {
+        WorkspaceManager.shared.detachActiveTab()
+    }
+    
+    @objc private func ungroupTabsAction() {
+        WorkspaceManager.shared.ungroupFocusedTabGroup()
+    }
+    
+    @objc private func toggleTabBarPinAction() {
+        WorkspaceManager.shared.toggleActiveTabBarPin()
+    }
+    
+    @objc private func tabSameAppAction() {
+        WorkspaceManager.shared.tabSameAppWindows()
+    }
+    
+    @objc private func tabAllAppsAction() {
+        WorkspaceManager.shared.tabAllSameAppWindows()
+    }
+    
+    @objc private func toggleAutoTabSameApp() {
+        SettingsStore.shared.autoTabSameAppWindows.toggle()
+        rebuildMenu()
+    }
+    
+    @objc private func toggleWrapAroundFocus() {
+        SettingsStore.shared.wrapAroundFocus.toggle()
+        rebuildMenu()
+    }
+    
+    @objc private func toggleFullWidthRestoresRatio() {
+        SettingsStore.shared.fullWidthToggleRestoresRatio.toggle()
+        rebuildMenu()
+    }
+    
+    @objc private func toggleCycleTabsBeforeColumns() {
+        SettingsStore.shared.cycleTabsBeforeColumns.toggle()
+        rebuildMenu()
+    }
+    
     @objc public func openSettings() {
+        NSApp.setActivationPolicy(.regular)
         if let window = settingsWindow {
+            window.orderFrontRegardless()
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
@@ -224,12 +430,56 @@ public final class StatusBarController: NSObject {
         let window = NSWindow(contentViewController: hostingController)
         window.title = "Iume Settings"
         window.styleMask = [.titled, .closable, .miniaturizable]
+        window.setContentSize(CGSize(width: 700, height: 590))
         window.center()
         window.isReleasedWhenClosed = false
         self.settingsWindow = window
         
+        window.orderFrontRegardless()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+    
+    private var setupWindow: NSWindow?
+    
+    @objc private func sendToNextDisplayAction() {
+        WorkspaceManager.shared.sendFocusedColumnToNextDisplay()
+    }
+    
+    @objc public func openMacSetup() {
+        NSApp.setActivationPolicy(.regular)
+        if let window = setupWindow {
+            window.orderFrontRegardless()
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        
+        let hostingController = NSHostingController(rootView: MacSetupView())
+        let window = NSWindow(contentViewController: hostingController)
+        window.title = "Mac Setup & Conflict Checker"
+        window.styleMask = [.titled, .closable, .miniaturizable]
+        window.setContentSize(CGSize(width: 700, height: 550))
+        window.center()
+        window.isReleasedWhenClosed = false
+        self.setupWindow = window
+        
+        window.orderFrontRegardless()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+    
+    @objc private func dumpDiagnosticsAction() {
+        let dumpText = WorkspaceManager.shared.dumpAllWindows()
+        let alert = NSAlert()
+        alert.messageText = "Window Diagnostics Dump"
+        alert.informativeText = dumpText
+        alert.addButton(withTitle: "Copy to Clipboard")
+        alert.addButton(withTitle: "Done")
+        if alert.runModal() == .alertFirstButtonReturn {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(dumpText, forType: .string)
+        }
     }
     
     @objc private func openPermissions() {

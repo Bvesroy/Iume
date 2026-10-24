@@ -7,7 +7,6 @@
 Linux scrolling window managers like **PaperWM** (GNOME extension) and **niri** (Wayland compositor) operate with complete compositor authority: they control surface allocation, input dispatch, rendering pipelines, and coordinate systems. In contrast, macOS does **not** allow third-party applications to act as native compositors without disabling System Integrity Protection (SIP) or injecting code into WindowServer (as old haxies like mach_inject attempted).
 
 This report investigates the official, supported APIs on modern macOS (macOS 14 Sonoma, macOS 15 Sequoia, and beyond on Apple Silicon) to deliver an authentic, rock-solid, production-quality PaperWM/niri scrolling desktop experience **without** root privileges, SIP disabling, or private undocumented symbols.
-
 ---
 
 ### 1. API Evaluation & Platform Capabilities

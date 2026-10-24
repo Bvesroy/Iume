@@ -7,6 +7,8 @@ public final class WindowRegistry: @unchecked Sendable {
     private let lock = NSLock()
     private var windows: [WindowId: ManagedWindow] = [:]
     private var axElementMap: [WindowId: AXUIElement] = [:]
+    private var cgWindowIds: [WindowId: CGWindowID] = [:]
+    private var originalPreTilingFrames: [WindowId: CGRect] = [:]
     private var focusedWindowId: WindowId?
     
     public init() {}
@@ -16,7 +18,17 @@ public final class WindowRegistry: @unchecked Sendable {
     public func register(window: ManagedWindow, axElement: AXUIElement? = nil) {
         lock.lock()
         defer { lock.unlock() }
-        windows[window.id] = window
+        var updated = window
+        if let orig = originalPreTilingFrames[window.id] {
+            // Unconditionally preserve original pre-tiling frame across all re-arrangements
+            updated.initialFrame = orig
+        } else if let existing = windows[window.id] {
+            updated.initialFrame = existing.initialFrame
+            originalPreTilingFrames[window.id] = existing.initialFrame
+        } else {
+            originalPreTilingFrames[window.id] = window.initialFrame
+        }
+        windows[window.id] = updated
         if let ax = axElement {
             axElementMap[window.id] = ax
         }
@@ -27,6 +39,8 @@ public final class WindowRegistry: @unchecked Sendable {
         defer { lock.unlock() }
         windows.removeValue(forKey: windowId)
         axElementMap.removeValue(forKey: windowId)
+        cgWindowIds.removeValue(forKey: windowId)
+        originalPreTilingFrames.removeValue(forKey: windowId)
         if focusedWindowId == windowId {
             focusedWindowId = nil
         }
@@ -53,6 +67,23 @@ public final class WindowRegistry: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return axElementMap[windowId]
+    }
+    
+    public func getCGWindowID(for windowId: WindowId, ax: AXUIElement) -> CGWindowID {
+        lock.lock()
+        if let cached = cgWindowIds[windowId] {
+            lock.unlock()
+            return cached
+        }
+        lock.unlock()
+        
+        let wid = IumeCore.getCGWindowID(for: ax) ?? 0
+        if wid != 0 {
+            lock.lock()
+            cgWindowIds[windowId] = wid
+            lock.unlock()
+        }
+        return wid
     }
     
     public func allWindows() -> [ManagedWindow] {
@@ -104,11 +135,15 @@ public final class WindowRegistry: @unchecked Sendable {
         }
     }
     
-    public func removeAll() {
+    public func removeAll(keepOriginalFrames: Bool = false) {
         lock.lock()
         defer { lock.unlock() }
         windows.removeAll()
         axElementMap.removeAll()
+        cgWindowIds.removeAll()
         focusedWindowId = nil
+        if !keepOriginalFrames {
+            originalPreTilingFrames.removeAll()
+        }
     }
 }

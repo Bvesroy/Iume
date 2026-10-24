@@ -55,6 +55,11 @@ public final class DisplayManager: ObservableObject {
         onDisplaysChanged?(geometries)
     }
     
+    public func setActiveDisplaysForTesting(_ displays: [DisplayGeometry]) {
+        self.activeDisplays = displays
+        onDisplaysChanged?(displays)
+    }
+    
     public func primaryDisplay() -> DisplayGeometry? {
         activeDisplays.first { $0.isPrimary } ?? activeDisplays.first
     }

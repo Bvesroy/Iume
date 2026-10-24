@@ -12,17 +12,31 @@ public final class FocusManager {
     
     // MARK: - Navigation Operations
     
-    public func focusLeft(columns: [WindowColumn], currentColumnIndex: Int?) {
+    public func focusLeft(columns: [WindowColumn], currentColumnIndex: Int?, wrapAround: Bool = false) {
         guard !columns.isEmpty else { return }
         let current = currentColumnIndex ?? 0
-        let targetIndex = max(0, current - 1)
+        let targetIndex: Int
+        if current > 0 {
+            targetIndex = current - 1
+        } else if wrapAround {
+            targetIndex = columns.count - 1
+        } else {
+            targetIndex = 0
+        }
         selectColumn(at: targetIndex, columns: columns)
     }
     
-    public func focusRight(columns: [WindowColumn], currentColumnIndex: Int?) {
+    public func focusRight(columns: [WindowColumn], currentColumnIndex: Int?, wrapAround: Bool = false) {
         guard !columns.isEmpty else { return }
         let current = currentColumnIndex ?? 0
-        let targetIndex = min(columns.count - 1, current + 1)
+        let targetIndex: Int
+        if current < columns.count - 1 {
+            targetIndex = current + 1
+        } else if wrapAround {
+            targetIndex = 0
+        } else {
+            targetIndex = columns.count - 1
+        }
         selectColumn(at: targetIndex, columns: columns)
     }
     
@@ -36,19 +50,33 @@ public final class FocusManager {
         selectColumn(at: columns.count - 1, columns: columns)
     }
     
-    public func focusUp(columns: [WindowColumn], currentColumnIndex: Int?, currentWindowId: WindowId?) {
+    public func focusUp(columns: [WindowColumn], currentColumnIndex: Int?, currentWindowId: WindowId?, wrapAround: Bool = false) {
         guard let current = currentColumnIndex, current >= 0, current < columns.count else { return }
         let winIds = columns[current].windowIds
         guard winIds.count > 1, let currentWin = currentWindowId, let idx = winIds.firstIndex(of: currentWin) else { return }
-        let targetWinIdx = max(0, idx - 1)
+        let targetWinIdx: Int
+        if idx > 0 {
+            targetWinIdx = idx - 1
+        } else if wrapAround {
+            targetWinIdx = winIds.count - 1
+        } else {
+            targetWinIdx = 0
+        }
         onFocusRequested?(winIds[targetWinIdx], current)
     }
     
-    public func focusDown(columns: [WindowColumn], currentColumnIndex: Int?, currentWindowId: WindowId?) {
+    public func focusDown(columns: [WindowColumn], currentColumnIndex: Int?, currentWindowId: WindowId?, wrapAround: Bool = false) {
         guard let current = currentColumnIndex, current >= 0, current < columns.count else { return }
         let winIds = columns[current].windowIds
         guard winIds.count > 1, let currentWin = currentWindowId, let idx = winIds.firstIndex(of: currentWin) else { return }
-        let targetWinIdx = min(winIds.count - 1, idx + 1)
+        let targetWinIdx: Int
+        if idx < winIds.count - 1 {
+            targetWinIdx = idx + 1
+        } else if wrapAround {
+            targetWinIdx = 0
+        } else {
+            targetWinIdx = winIds.count - 1
+        }
         onFocusRequested?(winIds[targetWinIdx], current)
     }
     
@@ -74,7 +102,13 @@ public final class FocusManager {
     private func selectColumn(at index: Int, columns: [WindowColumn]) {
         guard index >= 0, index < columns.count else { return }
         let col = columns[index]
-        guard let targetWindowId = col.windowIds.first else { return }
-        onFocusRequested?(targetWindowId, index)
+        let targetWindowId: WindowId? = {
+            if col.activeWindowIndex >= 0 && col.activeWindowIndex < col.windowIds.count {
+                return col.windowIds[col.activeWindowIndex]
+            }
+            return col.windowIds.first
+        }()
+        guard let target = targetWindowId else { return }
+        onFocusRequested?(target, index)
     }
 }

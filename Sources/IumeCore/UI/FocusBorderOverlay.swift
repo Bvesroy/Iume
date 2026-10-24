@@ -33,7 +33,7 @@ public final class FocusBorderOverlay {
         self.panel = p
     }
     
-    public func updateFrame(_ frame: CGRect?, visibleFrame: CGRect) {
+    public func updateFrame(_ frame: CGRect?, visibleFrame: CGRect, animated: Bool = true) {
         guard let p = panel else { return }
         
         guard SettingsStore.shared.showFocusBorder, let f = frame else {
@@ -49,14 +49,39 @@ public final class FocusBorderOverlay {
         }
         
         let insetFrame = f.insetBy(dx: -2.0, dy: -2.0)
-        p.setFrame(insetFrame, display: true)
+        let isMoving = abs(p.frame.origin.x - insetFrame.origin.x) + abs(p.frame.origin.y - insetFrame.origin.y)
+        let shouldAnimate = animated && SettingsStore.shared.enableTransitions && p.isVisible && p.frame != .zero && isMoving > 2.0 && isMoving < 1500
+        
+        if shouldAnimate {
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = min(0.22, SettingsStore.shared.animationDuration)
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                p.animator().setFrame(insetFrame, display: true)
+            }
+        } else {
+            p.setFrame(insetFrame, display: true)
+        }
+        
         if !p.isVisible {
+            p.alphaValue = 0
             p.orderFront(nil)
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.15
+                p.animator().alphaValue = 1.0
+            }
+        }
+    }
+    
+    public func show(around frame: CGRect) {
+        if let screen = NSScreen.main {
+            updateFrame(frame, visibleFrame: screen.visibleFrame, animated: true)
         }
     }
     
     public func hide() {
-        panel?.orderOut(nil)
+        if let p = panel, p.isVisible {
+            p.orderOut(nil)
+        }
     }
 }
 

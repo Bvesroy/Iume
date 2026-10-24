@@ -1,0 +1,27 @@
+[package]
+name = "iume_engine"
+version = "0.1.0"
+edition = "2021"
+description = "Deterministic, allocation-free layout, viewport, spring and magnetic math for Iume."
+license = "MIT"
+
+# Static-only on purpose: the Swift linker picks the dylib over the archive when
+# both are present, which bakes an absolute path to the build tree into the Iume
+# executable and breaks the packaged .app. Keep the rlib for `cargo test`.
+[lib]
+name = "iume_engine"
+crate-type = ["staticlib", "rlib"]
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = "debuginfo"
+
+[profile.dev]
+opt-level = 1
+
+[dependencies]
+
+[dev-dependencies]

@@ -64,5 +64,22 @@ let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate
 app.setActivationPolicy(.accessory) // Runs as menu bar accessory app
+
+// Signal handling via GCD signal sources (async-signal-safe).
+signal(SIGINT, SIG_IGN)
+signal(SIGTERM, SIG_IGN)
+let sigintSource = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
+sigintSource.setEventHandler {
+    WorkspaceManager.shared.stop()
+    exit(0)
+}
+sigintSource.resume()
+let sigtermSource = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+sigtermSource.setEventHandler {
+    WorkspaceManager.shared.stop()
+    exit(0)
+}
+sigtermSource.resume()
+
 app.run()
 

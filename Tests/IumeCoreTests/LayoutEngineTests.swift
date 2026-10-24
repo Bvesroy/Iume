@@ -227,13 +227,12 @@ struct LayoutEngineTests {
             focusedColumnIndex: 0,
             visibleFrame: CGRect(x: 0, y: 0, width: 500, height: 800),
             viewportOffset: 0,
-            layoutMode: .manualLayout
+            layoutMode: .scrollStrip
         )
         
-        #expect(computation.parkedWindowIds.contains(win3))
         let frame3 = computation.targetFrames[win3]!
-        // Default zero-sliver parks cleanly offscreen-left: minVisibleX - colWidth - 200 = 0 - 400 - 200 = -600
-        #expect(frame3.origin.x == -600)
+        // Offscreen window is safely parked at edge sliver (500 - 12 = 488) to prevent WindowServer clamping loops
+        #expect(frame3.origin.x == 488)
         
         // When peek sliver is explicitly enabled (> 0)
         let sliverEngine = LayoutEngine(windowGap: 10, defaultColumnWidthRatio: 0.5, defaultMinimumColumnWidth: 400, offScreenPeekSliverWidth: 14.0)
@@ -243,7 +242,7 @@ struct LayoutEngineTests {
             focusedColumnIndex: 0,
             visibleFrame: CGRect(x: 0, y: 0, width: 500, height: 800),
             viewportOffset: 0,
-            layoutMode: .manualLayout
+            layoutMode: .scrollStrip
         )
         let sliverFrame3 = sliverComputation.targetFrames[win3]!
         #expect(sliverFrame3.origin.x == 486)
@@ -352,6 +351,156 @@ struct LayoutEngineTests {
         #expect(comp150.targetFrames[win1]!.origin.x == -150)
         // win2 shifts left by 150 pt: 610 - 150 = 460
         #expect(comp150.targetFrames[win2]!.origin.x == 460)
+    }
+    
+    @Test("Offscreen right non-focused window is parked cleanly to prevent WindowServer overlap")
+    func testOffscreenRightParkingZeroOverlap() {
+        let win1 = WindowId(pid: 1, rawId: 1)
+        let win2 = WindowId(pid: 1, rawId: 2)
+        let win3 = WindowId(pid: 1, rawId: 3)
+        let cols = [
+            WindowColumn(windowIds: [win1], width: 500),
+            WindowColumn(windowIds: [win2], width: 450),
+            WindowColumn(windowIds: [win3], width: 500)
+        ]
+        let windows: [WindowId: ManagedWindow] = [
+            win1: ManagedWindow(id: win1, pid: 1, bundleIdentifier: "a", appName: "A", title: "A", frame: .zero, initialFrame: .zero),
+            win2: ManagedWindow(id: win2, pid: 1, bundleIdentifier: "b", appName: "B", title: "B", frame: .zero, initialFrame: .zero),
+            win3: ManagedWindow(id: win3, pid: 1, bundleIdentifier: "c", appName: "C", title: "C", frame: .zero, initialFrame: .zero)
+        ]
+        
+        let comp = engine.computeLayout(
+            columns: cols,
+            windows: windows,
+            focusedColumnIndex: 0,
+            visibleFrame: CGRect(x: 0, y: 0, width: 1000, height: 800),
+            viewportOffset: 0,
+            layoutMode: .scrollStrip
+        )
+        
+        #expect(comp.targetFrames[win1]!.origin.x == 0)
+        #expect(comp.targetFrames[win2]!.origin.x == 510)
+        #expect(comp.parkedWindowIds.contains(win3))
+    }
+    
+    @Test("Sliding window does not disappear midway and reaches right end smoothly")
+    func testSlidingWindowDoesNotDisappearMidwayAndReachesRightEnd() {
+        let engine = LayoutEngine(windowGap: 10, centerMode: .onOverflow)
+        let win1 = WindowId(pid: 1, rawId: 1)
+        let win2 = WindowId(pid: 1, rawId: 2)
+        let cols = [
+            WindowColumn(windowIds: [win1], width: 500),
+            WindowColumn(windowIds: [win2], width: 500)
+        ]
+        let windows: [WindowId: ManagedWindow] = [
+            win1: ManagedWindow(id: win1, pid: 1, bundleIdentifier: "a", appName: "A", title: "A", frame: .zero, initialFrame: .zero),
+            win2: ManagedWindow(id: win2, pid: 1, bundleIdentifier: "b", appName: "B", title: "B", frame: .zero, initialFrame: .zero)
+        ]
+        
+        // Col 1 is at 510 naturally. Suppose user scrolls left so Col 1 slides right towards 750 (partially offscreen right)
+        // Its right edge is 750 + 500 = 1250 > 1000, but its left edge is at 750 (< 965).
+        // It MUST NOT be parked; it must remain visible at x = 750!
+        let comp750 = engine.computeLayout(
+            columns: cols,
+            windows: windows,
+            focusedColumnIndex: 0,
+            visibleFrame: CGRect(x: 0, y: 0, width: 1000, height: 800),
+            viewportOffset: -240, // slides columns right by 240pt: 510 - (-240) = 750
+            layoutMode: .scrollStrip
+        )
+        #expect(comp750.targetFrames[win2]!.origin.x == 750)
+        #expect(!comp750.parkedWindowIds.contains(win2))
+        
+        // Slides further right to 900 (only 100pt left on screen). Still must NOT be parked!
+        let comp900 = engine.computeLayout(
+            columns: cols,
+            windows: windows,
+            focusedColumnIndex: 0,
+            visibleFrame: CGRect(x: 0, y: 0, width: 1000, height: 800),
+            viewportOffset: -390, // 510 - (-390) = 900
+            layoutMode: .scrollStrip
+        )
+        #expect(comp900.targetFrames[win2]!.origin.x == 900)
+        #expect(!comp900.parkedWindowIds.contains(win2))
+    }
+    
+    @Test("computeSnapTarget aligns with column edges and respects flick direction")
+    func testComputeSnapTargetEdgeAlignmentAndFlick() {
+        let engine = LayoutEngine(windowGap: 0, centerMode: .never)
+        let cols = [
+            WindowColumn(windowIds: [WindowId(pid: 1, rawId: 1)], width: 600),
+            WindowColumn(windowIds: [WindowId(pid: 1, rawId: 2)], width: 600),
+            WindowColumn(windowIds: [WindowId(pid: 1, rawId: 3)], width: 600)
+        ]
+        let visibleWidth: CGFloat = 1200.0 // Exactly 2 columns fit on screen
+        
+        // 1. At or near offset 0, it must cleanly snap to 0.0 (Column 0), NOT skip Column 0
+        let target0 = engine.computeSnapTarget(for: 50.0, velocity: 0.0, columns: cols, visibleWidth: visibleWidth, centerMode: .never)
+        #expect(target0.targetOffset == 0.0)
+        #expect(target0.focusedColumnIndex == 0)
+        
+        // 2. Flick forward (scrolling right, revealing Column 2)
+        let targetFlick = engine.computeSnapTarget(for: 150.0, velocity: 120.0, columns: cols, visibleWidth: visibleWidth, centerMode: .never)
+        #expect(targetFlick.targetOffset == 600.0)
+        #expect(targetFlick.focusedColumnIndex == 1)
+        
+        // 3. Flick backward (scrolling left, returning to Column 0)
+        let targetBack = engine.computeSnapTarget(for: 450.0, velocity: -120.0, columns: cols, visibleWidth: visibleWidth, centerMode: .never)
+        #expect(targetBack.targetOffset == 0.0)
+        #expect(targetBack.focusedColumnIndex == 0)
+    }
+    
+    @Test("Symmetric edge sliver clamping prevents negative coordinate jumps and WindowServer clamping loops")
+    func testSymmetricEdgeSliverClampingPreventsNegativeCoordinatesAndClampingLoops() {
+        let engine = LayoutEngine(windowGap: 0, offScreenPeekSliverWidth: 12.0)
+        let win1 = WindowId(pid: 1, rawId: 1)
+        let win2 = WindowId(pid: 1, rawId: 2)
+        let win3 = WindowId(pid: 1, rawId: 3)
+        let cols = [
+            WindowColumn(windowIds: [win1], width: 800),
+            WindowColumn(windowIds: [win2], width: 800),
+            WindowColumn(windowIds: [win3], width: 800)
+        ]
+        let windows: [WindowId: ManagedWindow] = [
+            win1: ManagedWindow(id: win1, pid: 1, bundleIdentifier: "a", appName: "A", title: "A", frame: .zero, initialFrame: .zero),
+            win2: ManagedWindow(id: win2, pid: 1, bundleIdentifier: "b", appName: "B", title: "B", frame: .zero, initialFrame: .zero),
+            win3: ManagedWindow(id: win3, pid: 1, bundleIdentifier: "c", appName: "C", title: "C", frame: .zero, initialFrame: .zero)
+        ]
+        let visibleFrame = CGRect(x: 0, y: 0, width: 1440, height: 900)
+        
+        // 1. Viewport at offset 0: Column 1 is visible (0..800), Column 2 is partially visible (800..1600)
+        // Column 3 is completely offscreen right (1600..2400)
+        let comp0 = engine.computeLayout(
+            columns: cols,
+            windows: windows,
+            focusedColumnIndex: 0,
+            visibleFrame: visibleFrame,
+            viewportOffset: 0.0,
+            layoutMode: .scrollStrip
+        )
+        let f3 = comp0.targetFrames[win3]!
+        // win3 is clamped to the right sliver: 1440 - 12 = 1428
+        #expect(f3.origin.x == 1428.0)
+        #expect(comp0.parkedWindowIds.contains(win3))
+        // Must NEVER jump to negative coordinate space:
+        #expect(f3.origin.x > 0)
+        
+        // 2. Viewport scrolled to Column 3 (offset = 1600):
+        // Column 1 is completely offscreen left
+        let comp1600 = engine.computeLayout(
+            columns: cols,
+            windows: windows,
+            focusedColumnIndex: 2,
+            visibleFrame: visibleFrame,
+            viewportOffset: 1600.0,
+            layoutMode: .scrollStrip
+        )
+        let f1 = comp1600.targetFrames[win1]!
+        // win1 is clamped to the left sliver: 0 - 800 + 12 = -788
+        #expect(f1.origin.x == -788.0)
+        #expect(comp1600.parkedWindowIds.contains(win1))
+        // WindowServer on-screen invariant: exactly 12pt sliver remains within [0, 1440]
+        #expect(f1.maxX == 12.0)
     }
 }
 

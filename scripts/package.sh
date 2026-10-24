@@ -26,6 +26,11 @@ chmod +x "$MACOS_DIR/Iume"
 # Copy Info.plist
 cp "$PROJECT_ROOT/Resources/Info.plist" "$CONTENTS_DIR/Info.plist"
 
+# Copy AppIcon.icns if present
+if [ -f "$PROJECT_ROOT/Resources/AppIcon.icns" ]; then
+    cp "$PROJECT_ROOT/Resources/AppIcon.icns" "$RESOURCES_DIR/AppIcon.icns"
+fi
+
 # Ad-hoc code signing for local execution without paid developer account
 echo "=== Ad-hoc Code Signing App Bundle ==="
 codesign --force --deep --sign - "$APP_DIR"

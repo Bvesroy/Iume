@@ -44,7 +44,8 @@ func runLiveTest() {
     // 4. Window Discovery & Registration
     let windowDiscovery = WindowDiscovery()
     let layoutEngine = LayoutEngine(
-        windowGap: settings.windowGap,
+        windowGap: settings.appsEdgeTogether ? 0.0 : settings.windowGap,
+        edgeMargins: settings.edgeMargins,
         defaultColumnWidthRatio: settings.defaultColumnWidthRatio
     )
     let windowController = WindowController()

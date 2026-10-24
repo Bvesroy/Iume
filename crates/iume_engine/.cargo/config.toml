@@ -1,0 +1,5 @@
+# The Swift package targets macOS 14 (Package.swift). Keep the static library at
+# the same floor so linking does not pull macOS 15-only symbols into a binary
+# that claims to support Sonoma.
+[env]
+MACOSX_DEPLOYMENT_TARGET = "14.0"
