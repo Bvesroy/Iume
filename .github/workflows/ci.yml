@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build & Test on macOS
+    runs-on: macos-14
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+
+      - name: Build Rust Strip Engine
+        run: |
+          chmod +x ./scripts/build-rust.sh
+          ./scripts/build-rust.sh
+
+      - name: Build Iume Swift Package
+        run: |
+          swift build -c release
+
+      - name: Verify Scroll Lock Physics Invariants
+        run: |
+          python3 tools/scroll_lock.py verify -v
+
+      - name: Run Unified Audit Test Suite
+        run: |
+          chmod +x ./scripts/audit/run-all-tests.sh
+          bash ./scripts/audit/run-all-tests.sh

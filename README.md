@@ -5,7 +5,17 @@
 [![macOS](https://img.shields.io/badge/macOS-14.0%2B-blue.svg)](https://apple.com/macos)
 [![Architecture](https://img.shields.io/badge/Architecture-Apple%20Silicon%20(M1--M4)-orange.svg)]()
 [![Language](https://img.shields.io/badge/Swift-6.0%2B-FA7343.svg)](https://swift.org)
+[![Release](https://img.shields.io/badge/Release-v2.7.0-8A2BE2.svg)](https://github.com/Bvesroy/Iume/releases/tag/v2.7.0)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+---
+
+## Downloads
+
+| Package | Purpose | Direct Download | Verification |
+| :--- | :--- | :--- | :--- |
+| **Iume-v2.7.0.dmg** | Recommended macOS Drag & Drop Installer | [Download .dmg](https://github.com/Bvesroy/Iume/releases/download/v2.7.0/Iume-v2.7.0.dmg) | [SHA-256](https://github.com/Bvesroy/Iume/releases/download/v2.7.0/Iume-v2.7.0.dmg.sha256) |
+| **Iume-v2.7.0.zip** | Standalone .app Archive | [Download .zip](https://github.com/Bvesroy/Iume/releases/download/v2.7.0/Iume-v2.7.0.zip) | [SHA-256](https://github.com/Bvesroy/Iume/releases/download/v2.7.0/Iume-v2.7.0.zip.sha256) |
 
 ---
 
@@ -112,7 +122,7 @@ Options: `--package-only` skips installing into `/Applications` and the MEGA bac
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/Iume.git
+git clone https://github.com/Bvesroy/Iume.git
 cd Iume
 
 # Build the Rust engine + debug binary (runs cargo for you)
