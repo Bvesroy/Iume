@@ -112,7 +112,7 @@ From the 25 specialist roles in the swarm, we select a minimal set of **6 specia
 | 7 | **code-reviewer** (Quality Gate) | Strict independent review, regression checking, invariant validation, and commit readiness. |
 
 *Excluded Specialists (Not needed for Phase 4):*
-`researcher`, `security-auditor`, `docs-writer`, `refactorer` (absorbed by specialists), `bug-hunter` (absorbed by test/accessibility), `data-analyst`, `devops-engineer`, `backend-specialist`, `database-expert`, `api-designer`, `ml-ai-researcher`, `open-source-scout`, `dependency-manager`, `ci-cd-specialist`, `ux-reviewer`, `localization-expert`, `cost-optimizer`, `memory-curator`.
+`researcher`, `security-auditor`, `docs-writer`, `refactorer` (absorbed by specialists), `bug-hunter` (absorbed by test/accessibility), `data-analyst`, `devops-engineer`, `backend-specialist`, `database-expert`, `api-designer`, `ml-researcher`, `open-source-scout`, `dependency-manager`, `ci-cd-specialist`, `ux-reviewer`, `localization-expert`, `cost-optimizer`, `memory-curator`.
 
 ---
 

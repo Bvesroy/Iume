@@ -220,7 +220,7 @@ To safeguard the verified perfect scrolling physics, **11 code sections across 7
 - **Password Verification**: PBKDF2-HMAC-SHA256 with 200,000 rounds and 128-bit salt in [`.scroll_lock.json`](file:///Users/bves/projects/Iume/.scroll_lock.json).
 - **Integrity Validation**: SHA-256 section hashes checked before every git commit via [`.git/hooks/pre-commit`](file:///Users/bves/projects/Iume/.git/hooks/pre-commit).
 - **Time-Limited Token**: Valid password issues a 15-minute `.scroll_lock.token`.
-- **Agent Governance**: [`.agentrules`](file:///Users/bves/projects/Iume/.agentrules) forbids AI modifications without explicit user password authorization.
+- **Contributor Governance**: [`.agentrules`](file:///Users/bves/projects/Iume/.agentrules) forbids modifications without explicit user password authorization.
 
 *(Refer to [Module 08: Security, Integrity Lock & Permissions](file:///Users/bves/projects/Iume/docs/manual/08_SECURITY_INTEGRITY_LOCK_AND_PERMISSIONS.md) for full security specs).*
 

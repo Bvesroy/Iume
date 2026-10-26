@@ -107,6 +107,12 @@ struct WelcomeView: View {
 
                 Spacer(minLength: 0)
 
+                Text("Vibecoded by BvesRoy 😉")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+
+                Spacer(minLength: 0)
+
                 Button(granted ? "Start Using Iume" : "Continue") {
                     onClose()
                 }

@@ -586,7 +586,16 @@ public struct LaunchHUDView: View {
                 .font(.system(size: 11))
             }
             .padding(.horizontal)
-            .padding(.bottom, 12)
+            .padding(.bottom, 6)
+            
+            HStack {
+                Spacer()
+                Text("Vibecoded by BvesRoy 😉")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.secondary.opacity(0.8))
+                Spacer()
+            }
+            .padding(.bottom, 8)
             }
             .padding(.vertical, 14)
         }

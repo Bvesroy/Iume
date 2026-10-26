@@ -1,7 +1,7 @@
 # Iume — Fixes, Feature Parity & Upgrade Instructions
 
 **Goal:** make Iume as smooth, reliable and complete as ChainYourMac / TileMyMac, with every behaviour happening automatically.
-**Date:** 15 Oct 2026 · **Audience:** whoever is editing the Iume codebase (you, or an AI coding agent).
+**Date:** 15 Oct 2026 · **Audience:** whoever is editing the Iume codebase (the developer or engineer).
 
 ---
 
@@ -663,7 +663,7 @@ Your item 6 means these must happen with **zero user action**. Use this as an ac
 
 ---
 
-## 11. Quick-start order for an AI coding agent
+## 11. Quick-start implementation order
 
 1. Read §2.1 and fix signing/permission code. Verify with the commands shown.
 2. Add the debug "Dump all windows" command and per-app AX latency signposts (needed to prove every later fix).

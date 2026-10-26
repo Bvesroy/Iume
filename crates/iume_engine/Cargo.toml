@@ -2,6 +2,7 @@
 name = "iume_engine"
 version = "0.1.0"
 edition = "2021"
+authors = ["BvesRoy <67495078+Bhaveshkr211@users.noreply.github.com>"]
 description = "Deterministic, allocation-free layout, viewport, spring and magnetic math for Iume."
 license = "MIT"
 

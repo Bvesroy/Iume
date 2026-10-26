@@ -334,6 +334,11 @@ public final class StatusBarController: NSObject {
         
         menu.addItem(NSMenuItem.separator())
         
+        // Developer signature
+        let signatureItem = NSMenuItem(title: "Vibecoded by BvesRoy 😉", action: nil, keyEquivalent: "")
+        signatureItem.isEnabled = false
+        menu.addItem(signatureItem)
+        
         // Quit
         let quitItem = NSMenuItem(title: "Quit Iume", action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self

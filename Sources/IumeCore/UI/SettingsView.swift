@@ -187,6 +187,19 @@ public struct SettingsView: View {
                 }
                 .padding(16)
                 .background(settingsCardBackground)
+                
+                HStack {
+                    Text("Iume Window Manager")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text("Vibecoded by BvesRoy 😉")
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 4)
+                .padding(.top, 4)
             }
             .padding(.vertical, 8)
         }

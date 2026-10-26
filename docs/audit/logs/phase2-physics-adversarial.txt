@@ -1,6 +1,6 @@
 Phase 2 physics gate: deterministic + adversarial stress suites
 captured: 2026-10-26 11:49:03 
-snapshot: /private/var/folders/_5/qk9tkd653n9dnvt9mbvf3r500000gn/T/opencode/phase2-final3
+snapshot: /private/tmp/iume/phase2-final3
 hash-stable: yes (immutable snapshot; hashes below are the compiled bytes)
 note: the default main.swift (bac113…) does not call runAdversarialStressTests().
 This run injects the call into a copy of that exact main.swift and executes both

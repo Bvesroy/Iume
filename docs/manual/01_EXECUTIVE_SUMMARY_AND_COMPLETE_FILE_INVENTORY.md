@@ -17,7 +17,7 @@
 
 ```
 /Users/bves/projects/Iume/
-├── .agentrules                           # AI agent governance rules protecting locked physics
+├── .agentrules                           # Contributor and assistant governance rules protecting locked physics
 ├── .gitignore                            # Git exclusion rules (build artifacts, tokens, caches)
 ├── .scroll_lock.json                     # SHA-256 integrity hashes & PBKDF2 password manifest
 ├── CHANGELOG.md                          # Version release history and change tracking

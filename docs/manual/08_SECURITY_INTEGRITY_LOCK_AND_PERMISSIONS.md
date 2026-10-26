@@ -2,7 +2,7 @@
 
 ## 1. The Scroll Lock Cryptographic Integrity Engine
 
-To ensure that the verified "perfect scrolling" physics engine is permanently protected against accidental regression, unauthorized modification, or automated AI refactoring, Iume incorporates a custom cryptographic integrity guard ([`tools/scroll_lock.py`](file:///Users/bves/projects/Iume/tools/scroll_lock.py)).
+To ensure that the verified "perfect scrolling" physics engine is permanently protected against accidental regression, unauthorized modification, or automated external refactoring, Iume incorporates a custom cryptographic integrity guard ([`tools/scroll_lock.py`](file:///Users/bves/projects/Iume/tools/scroll_lock.py)).
 
 ```
 +─────────────────────────────────────────────────────────────────────────────────────────+

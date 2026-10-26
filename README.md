@@ -184,6 +184,13 @@ Iume/
 
 ---
 
+## Developer & Credits
+
+- **Developer:** BvesRoy
+- **Signature:** Vibecoded by BvesRoy 😉
+
+---
+
 ## License
 
 This project is licensed under the permissive **MIT License** — see the [LICENSE](LICENSE) file for details.

@@ -368,7 +368,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.1] - 2026-10-14
 
 ### Fixed
-- **Resolved Invisible Window Detection**: Removed disruptive `AXEnhancedUserInterface` and `AXManualAccessibility` flags that were preventing Electron, VS Code / Antigravity IDE, Terminal, and Finder from exposing windows.
+- **Resolved Invisible Window Detection**: Removed disruptive `AXEnhancedUserInterface` and `AXManualAccessibility` flags that were preventing Electron, VS Code, code editors, Terminal, and Finder from exposing windows.
 - **Multi-Source Window Discovery**: Added fallback checking across `kAXWindowsAttribute`, `kAXMainWindowAttribute`, `kAXFocusedWindowAttribute`, and `kAXChildrenAttribute` to guarantee 100% window discovery across all running applications.
 - **Native Fullscreen Handling**: Added dynamic `AXFullScreen` query to prevent native macOS fullscreen spaces from interfering with desktop strip positioning.
 - **Single-Instance Mutex**: Implemented `/tmp/com.iume.app.lock` with non-blocking kernel `flock` to permanently eliminate concurrent Iume processes and 25% CPU background conflicts.

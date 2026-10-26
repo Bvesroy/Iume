@@ -8,7 +8,7 @@ The scrolling physics in Iume have been calibrated and verified by the user to p
 4. **Kinetic Scrolling Profiles**: Four distinct deceleration models (`natural`, `viscous`, `highInertia`, `snappy`).
 5. **Smooth Scrolling**: Sub-frame interpolation and direct 1:1 touch resampling with zero input lag.
 
-To protect this verified configuration against regressions, unintended changes, or automated AI refactoring, all underlying code sections have been cryptographically locked and require password authorization before any modifications can occur.
+To protect this verified configuration against regressions, unintended changes, or automated external refactoring, all underlying code sections have been cryptographically locked and require password authorization before any modifications can occur.
 
 ---
 
@@ -48,8 +48,8 @@ The following 11 sections across 7 files are locked:
 3. **Git Pre-Commit Hook (`.git/hooks/pre-commit`)**:
    Runs `python3 tools/scroll_lock.py verify` before any git commit. If an unauthorized edit touches any locked section, the commit is blocked.
 
-4. **Agent Governance (`.agentrules`)**:
-   Instructs all AI models and automated assistants to never touch locked sections without prompting the user for the authorization password.
+4. **Contributor Governance (`.agentrules`)**:
+   Instructs all automated tools and contributors to never touch locked sections without prompting the user for the authorization password.
 
 ---
 
