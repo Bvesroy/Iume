@@ -658,7 +658,7 @@ public final class SettingsStore: ObservableObject {
             self.windowGap = loadedTogether ? 0.0 : loadedGap
             self.savedPreviousGap = loadedGap > 0 ? loadedGap : 12.0
             self.defaultColumnWidthRatio = (defaults.object(forKey: Keys.defaultColumnWidthRatio) ?? suiteDefaults.object(forKey: Keys.defaultColumnWidthRatio)) as? Double ?? 0.50
-            self.snapToColumn = (defaults.object(forKey: Keys.snapToColumn) ?? suiteDefaults.object(forKey: Keys.snapToColumn)) as? Bool ?? true
+            self.snapToColumn = (defaults.object(forKey: Keys.snapToColumn) ?? suiteDefaults.object(forKey: Keys.snapToColumn)) as? Bool ?? false
             self.animationDuration = (defaults.object(forKey: Keys.animationDuration) ?? suiteDefaults.object(forKey: Keys.animationDuration)) as? Double ?? 0.22
             self.trackpadNaturalScroll = (defaults.object(forKey: Keys.trackpadNaturalScroll) ?? suiteDefaults.object(forKey: Keys.trackpadNaturalScroll)) as? Bool ?? true
             
@@ -755,7 +755,7 @@ public final class SettingsStore: ObservableObject {
             self.cycleTabsBeforeColumns = (defaults.object(forKey: Keys.cycleTabsBeforeColumns) ?? suiteDefaults.object(forKey: Keys.cycleTabsBeforeColumns)) as? Bool ?? true
             self.fullWidthToggleRestoresRatio = (defaults.object(forKey: Keys.fullWidthToggleRestoresRatio) ?? suiteDefaults.object(forKey: Keys.fullWidthToggleRestoresRatio)) as? Bool ?? true
             self.freezeOnRelease = (defaults.object(forKey: Keys.freezeOnRelease) ?? suiteDefaults.object(forKey: Keys.freezeOnRelease)) as? Bool ?? false
-            self.freeformScroll = (defaults.object(forKey: Keys.freeformScroll) ?? suiteDefaults.object(forKey: Keys.freeformScroll)) as? Bool ?? false
+            self.freeformScroll = (defaults.object(forKey: Keys.freeformScroll) ?? suiteDefaults.object(forKey: Keys.freeformScroll)) as? Bool ?? true
             
             // Establish the durable file snapshot immediately
             let initialSnapshot = captureSnapshot()

@@ -75,8 +75,8 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
     private var pendingSettleWorkItem: DispatchWorkItem?
 
     public func activeViewportOffset(for displayId: CGDirectDisplayID) -> CGFloat {
-        if displayId == activeDisplayId && scrollController.isMoving {
-            return activeViewportOffsets[displayId] ?? scrollController.currentOffset
+        if displayId == activeDisplayId {
+            return scrollController.currentOffset
         }
         return activeViewportOffsets[displayId] ?? workspaces[displayId]?.viewportOffset ?? 0.0
     }
@@ -850,7 +850,8 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
             let effectiveGap = bounds.gap
             
             if self.settings.freezeOnRelease || self.settings.freeformScroll || !self.settings.snapToColumn {
-                let clampedOffset = min(max(0, projectedOffset), maxOffset)
+                let actualOffset = (self.settings.freeformScroll || !self.settings.snapToColumn) ? self.scrollController.currentOffset : projectedOffset
+                let clampedOffset = min(max(0, actualOffset), maxOffset)
                 let prominentColIdx = self.layoutEngine.prominentColumnIndex(
                     for: clampedOffset,
                     columns: ws.columns,
@@ -1298,6 +1299,7 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
                     return
                 }
                 activeDisplayId = dispId
+                ws.viewportOffset = activeViewportOffset(for: dispId)
                 ws.focusedColumnIndex = colIdx
                 if let tabIdx = ws.columns[colIdx].windowIds.firstIndex(of: winId) {
                     ws.columns[colIdx].activeWindowIndex = tabIdx
@@ -1313,7 +1315,7 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
                     let colW = ws.columns[colIdx].width
                     let screenX = vis.origin.x + colStripOffset - ws.viewportOffset
                     let isVisible = (screenX + colW > vis.minX + 40) && (screenX < vis.maxX - 40)
-                    if isFreeform && isVisible {
+                    if isFreeform || isVisible {
                         applyPhysicalWindowPositions(workspace: ws)
                         return
                     }
@@ -1556,6 +1558,7 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
         if let winId = registry.findWindowId(matchingAXElement: element) {
             let targetDispId = displayId(containing: winId) ?? activeDisplayId
             guard var ws = workspaces[targetDispId] else { return }
+            ws.viewportOffset = activeViewportOffset(for: targetDispId)
             if let colIdx = ws.columns.firstIndex(where: { $0.windowIds.contains(winId) }) {
                 if let tabIdx = ws.columns[colIdx].windowIds.firstIndex(of: winId) {
                     ws.columns[colIdx].activeWindowIndex = tabIdx
@@ -1576,7 +1579,7 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
                     let colW = ws.columns[colIdx].width
                     let screenX = vis.origin.x + colStripOffset - ws.viewportOffset
                     let isVisible = (screenX + colW > vis.minX + 40) && (screenX < vis.maxX - 40)
-                    if isFreeform && isVisible {
+                    if isFreeform || isVisible {
                         applyPhysicalWindowPositions(workspace: ws)
                         return
                     }
@@ -1598,6 +1601,7 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
                 return
             }
             guard var ws = workspaces[targetDispId] else { return }
+            ws.viewportOffset = activeViewportOffset(for: targetDispId)
             if let colIdx = ws.columns.firstIndex(where: { $0.windowIds.contains(parentWinId) }) {
                 if let tabIdx = ws.columns[colIdx].windowIds.firstIndex(of: parentWinId) {
                     ws.columns[colIdx].activeWindowIndex = tabIdx
@@ -1618,7 +1622,7 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
                     let colW = ws.columns[colIdx].width
                     let screenX = vis.origin.x + colStripOffset - ws.viewportOffset
                     let isVisible = (screenX + colW > vis.minX + 40) && (screenX < vis.maxX - 40)
-                    if isFreeform && isVisible {
+                    if isFreeform || isVisible {
                         applyPhysicalWindowPositions(workspace: ws)
                         return
                     }
@@ -3122,6 +3126,7 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
     
     public func activateWindow(_ winId: WindowId, inColumn colIdx: Int) {
         guard var ws = workspaces[activeDisplayId] else { return }
+        ws.viewportOffset = activeViewportOffset(for: activeDisplayId)
         ws.focusedColumnIndex = colIdx
         if colIdx >= 0 && colIdx < ws.columns.count {
             if let wIdx = ws.columns[colIdx].windowIds.firstIndex(of: winId) {
@@ -3148,7 +3153,7 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
             let colW = ws.columns[colIdx].width
             let screenX = vis.origin.x + colStripOffset - ws.viewportOffset
             let isVisible = (screenX + colW > vis.minX + 40) && (screenX < vis.maxX - 40)
-            if isFreeform && isVisible {
+            if isFreeform || isVisible {
                 applyPhysicalWindowPositions(workspace: ws)
                 return
             }
@@ -3161,8 +3166,9 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
     // MARK: - Layout Application
     
     public func applyLayout(animated: Bool = true) {
-        guard let ws = workspaces[activeDisplayId] else { return }
+        guard var ws = workspaces[activeDisplayId] else { return }
         guard !settings.disabledDisplayIds.contains(ws.displayGeometry.id) else { return }
+        ws.viewportOffset = activeViewportOffset(for: activeDisplayId)
         
         let isFreeform = settings.freeformScroll || !settings.snapToColumn
         let effectiveLayoutMode: LayoutMode = settings.layoutMode

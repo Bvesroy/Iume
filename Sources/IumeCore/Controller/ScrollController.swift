@@ -514,8 +514,8 @@ public final class ScrollController {
         // committed, and never while a spring already owns the offset.
         if hasPendingSettle && phase != .springing {
             let settings = SettingsStore.shared
-            if !settings.snapToColumn && abs(smoothTargetOffset - currentOffset) > 0.2 {
-                // Let the remaining glide finish before snapping.
+            if (!settings.snapToColumn || settings.freeformScroll) && abs(smoothTargetOffset - currentOffset) > 0.2 {
+                // Let the remaining glide finish before settling.
             } else {
                 hasPendingSettle = false
                 settle()
@@ -1862,7 +1862,7 @@ public final class ScrollController {
         springState.target = currentOffset
         springState.velocity = 0
 
-        if settings.snapToColumn {
+        if settings.snapToColumn && !settings.freeformScroll {
             let base = abs(smoothTargetOffset - currentOffset) > 0.5 ? smoothTargetOffset : currentOffset
             let projection = base + velocityAtSettle * 0.18
             settleVelocity = velocityAtSettle
@@ -1880,6 +1880,9 @@ public final class ScrollController {
         } else {
             smoothTargetOffset = currentOffset
             currentVelocity = 0.0
+            settleVelocity = 0.0
+            onSettleRequested?(currentOffset)
+            onSwipeSettled?(currentOffset)
             onAnimationCompleted?()
         }
     }

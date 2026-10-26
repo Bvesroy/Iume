@@ -23,7 +23,7 @@ public final class SettingsStore {
     public static let shared = SettingsStore()
 
     public var freezeOnRelease: Bool = false
-    public var freeformScroll: Bool = false
+    public var freeformScroll: Bool = true
     public var scrollSmoothness: Double = 0.75
     public var scrollDeceleration: Double = 0.965
     public var scrollSensitivity: Double = 1.0
@@ -34,7 +34,7 @@ public final class SettingsStore {
     public var momentumMultiplier: Double = 1.0
     public var kineticScrollingProfile: KineticScrollingProfile = .natural
     public var smoothScrollingEnabled: Bool = true
-    public var snapToColumn: Bool = true
+    public var snapToColumn: Bool = false
     public var animationDuration: Double = 0.22
 
     public init() {}

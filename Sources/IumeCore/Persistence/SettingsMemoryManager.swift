@@ -25,7 +25,7 @@ public struct SettingsSnapshot: Codable, Sendable, Equatable {
     public var savedPreviousGap: Double = 12.0
     public var edgeSnapping: Bool = true
     public var defaultColumnWidthRatio: Double = 0.50
-    public var snapToColumn: Bool = true
+    public var snapToColumn: Bool = false
     public var presetWidthRatios: [Double] = [0.25, 0.333, 0.50, 0.667, 0.75, 1.0]
     public var edgeMargins: EdgeMargins = EdgeMargins(top: 0, bottom: 0, left: 0, right: 0)
     public var smartWindowMargins: Bool = false
@@ -95,7 +95,7 @@ public struct SettingsSnapshot: Codable, Sendable, Equatable {
     public var tabMotionSpeed: Double = 1.0
     public var tabHapticsEnabled: Bool = true
     public var freezeOnRelease: Bool = false
-    public var freeformScroll: Bool = false
+    public var freeformScroll: Bool = true
 
     public init(
         schemaVersion: Int = 1,
@@ -116,7 +116,7 @@ public struct SettingsSnapshot: Codable, Sendable, Equatable {
         savedPreviousGap: Double = 12.0,
         edgeSnapping: Bool = true,
         defaultColumnWidthRatio: Double = 0.50,
-        snapToColumn: Bool = true,
+        snapToColumn: Bool = false,
         presetWidthRatios: [Double] = [0.25, 0.333, 0.50, 0.667, 0.75, 1.0],
         edgeMargins: EdgeMargins = EdgeMargins(top: 0, bottom: 0, left: 0, right: 0),
         smartWindowMargins: Bool = false,
@@ -172,7 +172,7 @@ public struct SettingsSnapshot: Codable, Sendable, Equatable {
         tabMotionSpeed: Double = 1.0,
         tabHapticsEnabled: Bool = true,
         freezeOnRelease: Bool = false,
-        freeformScroll: Bool = false
+        freeformScroll: Bool = true
     ) {
         self.schemaVersion = schemaVersion
         self.lastSavedDate = lastSavedDate
@@ -270,7 +270,7 @@ public struct SettingsSnapshot: Codable, Sendable, Equatable {
         self.savedPreviousGap = try c.decodeIfPresent(Double.self, forKey: .savedPreviousGap) ?? 12.0
         self.edgeSnapping = try c.decodeIfPresent(Bool.self, forKey: .edgeSnapping) ?? true
         self.defaultColumnWidthRatio = try c.decodeIfPresent(Double.self, forKey: .defaultColumnWidthRatio) ?? 0.50
-        self.snapToColumn = try c.decodeIfPresent(Bool.self, forKey: .snapToColumn) ?? true
+        self.snapToColumn = try c.decodeIfPresent(Bool.self, forKey: .snapToColumn) ?? false
         self.presetWidthRatios = try c.decodeIfPresent([Double].self, forKey: .presetWidthRatios) ?? [0.25, 0.333, 0.50, 0.667, 0.75, 1.0]
         self.edgeMargins = try c.decodeIfPresent(EdgeMargins.self, forKey: .edgeMargins) ?? EdgeMargins(top: 0, bottom: 0, left: 0, right: 0)
         self.smartWindowMargins = try c.decodeIfPresent(Bool.self, forKey: .smartWindowMargins) ?? false
@@ -338,7 +338,7 @@ public struct SettingsSnapshot: Codable, Sendable, Equatable {
         self.tabMotionSpeed = try c.decodeIfPresent(Double.self, forKey: .tabMotionSpeed) ?? 1.0
         self.tabHapticsEnabled = try c.decodeIfPresent(Bool.self, forKey: .tabHapticsEnabled) ?? true
         self.freezeOnRelease = try c.decodeIfPresent(Bool.self, forKey: .freezeOnRelease) ?? false
-        self.freeformScroll = try c.decodeIfPresent(Bool.self, forKey: .freeformScroll) ?? false
+        self.freeformScroll = try c.decodeIfPresent(Bool.self, forKey: .freeformScroll) ?? true
     }
 }
 
