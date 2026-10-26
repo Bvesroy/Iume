@@ -3,7 +3,7 @@ import CoreGraphics
 import ApplicationServices
 
 /// Data model representing a rendered window card in the strip overview.
-public struct WindowPreviewItem: Identifiable, Sendable {
+public struct WindowPreviewItem: Identifiable, @unchecked Sendable {
     public let id: WindowId
     public let columnId: UUID
     public let title: String

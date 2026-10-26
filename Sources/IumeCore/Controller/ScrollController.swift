@@ -374,7 +374,7 @@ public final class ScrollController {
         setupDisplayLink()
     }
     
-    isolated deinit {
+    public func invalidate() {
         displayLink?.invalidate()
         fallbackTimer?.invalidate()
         settleTimer?.invalidate()
