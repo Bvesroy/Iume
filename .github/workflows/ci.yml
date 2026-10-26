@@ -9,10 +9,20 @@ on:
 jobs:
   build-and-test:
     name: Build & Test on macOS
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Select Xcode 16 (Swift 6)
+        run: |
+          XCODE_APP=$(find /Applications -maxdepth 1 -name "Xcode_16*.app" 2>/dev/null | sort -V | tail -n 1)
+          if [ -n "$XCODE_APP" ]; then
+            echo "Selecting Xcode: $XCODE_APP"
+            sudo xcode-select -s "$XCODE_APP"
+            echo "DEVELOPER_DIR=$XCODE_APP/Contents/Developer" >> $GITHUB_ENV
+          fi
+          swift --version
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -26,7 +36,11 @@ jobs:
 
       - name: Build Iume Swift Package
         run: |
-          swift build -c release
+          mkdir -p /tmp/swift-module-cache
+          CLANG_MODULE_CACHE_PATH=/tmp/swift-module-cache \
+          swift build --disable-sandbox -c release \
+            -Xswiftc -module-cache-path -Xswiftc /tmp/swift-module-cache \
+            -Xcc -fmodules-cache-path=/tmp/swift-module-cache
 
       - name: Verify Scroll Lock Physics Invariants
         run: |
