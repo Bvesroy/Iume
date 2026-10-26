@@ -245,6 +245,48 @@ public final class StatusBarController: NSObject {
         loopItem.target = self
         menu.addItem(loopItem)
         
+        // [LOCKED SECTION: PERFECT_SCROLLING_PHYSICS_ENGINE:StatusBarKineticSubmenu]
+        // Description: Menu bar items for Kinetic, Inertial, Momentum, Smooth Scrolling, and Profiles.
+        // Kinetic & Inertial Scrolling submenu
+        let kineticMenu = NSMenu()
+        
+        let inertialItem = NSMenuItem(title: "Inertial Scrolling (Coasting)", action: #selector(toggleInertialScrolling), keyEquivalent: "")
+        inertialItem.state = (settings.inertialScrolling && !settings.freezeOnRelease) ? .on : .off
+        inertialItem.target = self
+        kineticMenu.addItem(inertialItem)
+        
+        let momentumItem = NSMenuItem(title: "Momentum Scrolling (Velocity-driven)", action: #selector(toggleMomentumScrolling), keyEquivalent: "")
+        momentumItem.state = settings.momentumScrolling ? .on : .off
+        momentumItem.target = self
+        kineticMenu.addItem(momentumItem)
+        
+        let smoothItem = NSMenuItem(title: "Smooth Scrolling (Gradual)", action: #selector(toggleSmoothScrolling), keyEquivalent: "")
+        smoothItem.state = settings.smoothScrollingEnabled ? .on : .off
+        smoothItem.target = self
+        kineticMenu.addItem(smoothItem)
+        
+        kineticMenu.addItem(NSMenuItem.separator())
+        
+        // Profiles submenu
+        let profileSubmenu = NSMenu()
+        for profile in KineticScrollingProfile.allCases {
+            let item = NSMenuItem(title: profile.displayName, action: #selector(selectKineticProfile(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = profile
+            if profile == settings.kineticScrollingProfile {
+                item.state = .on
+            }
+            profileSubmenu.addItem(item)
+        }
+        let profileMenuItem = NSMenuItem(title: "Profile: \(settings.kineticScrollingProfile.displayName)", action: nil, keyEquivalent: "")
+        profileMenuItem.submenu = profileSubmenu
+        kineticMenu.addItem(profileMenuItem)
+        
+        let kineticSubmenuItem = NSMenuItem(title: "🌊 Kinetic & Inertial Scrolling", action: nil, keyEquivalent: "")
+        kineticSubmenuItem.submenu = kineticMenu
+        menu.addItem(kineticSubmenuItem)
+        // [END LOCKED SECTION: PERFECT_SCROLLING_PHYSICS_ENGINE:StatusBarKineticSubmenu]
+        
         // HUD Instrument Style
         let hudMenu = NSMenu()
         for style in MinimapHUDStyle.allCases {
@@ -347,11 +389,7 @@ public final class StatusBarController: NSObject {
     }
     
     @objc private func centerColumnAction() {
-        let wsManager = WorkspaceManager.shared
-        guard let ws = wsManager.workspaces[wsManager.activeDisplayId], let current = ws.focusedColumnIndex else { return }
-        let centerOffset = wsManager.layoutEngine.centerColumnOffset(at: current, columns: ws.columns, visibleWidth: ws.displayGeometry.visibleFrame.width)
-        let maxOffset = max(0, wsManager.layoutEngine.totalStripWidth(columns: ws.columns) - ws.displayGeometry.visibleFrame.width)
-        wsManager.scrollController.scrollTo(target: centerOffset, maxOffset: maxOffset, duration: SettingsStore.shared.animationDuration)
+        WorkspaceManager.shared.centerFocusedColumn()
     }
     
     @objc private func openOverviewAction() {
@@ -385,6 +423,38 @@ public final class StatusBarController: NSObject {
         SettingsStore.shared.freeformScroll.toggle()
         rebuildMenu()
     }
+    
+    // [LOCKED SECTION: PERFECT_SCROLLING_PHYSICS_ENGINE:StatusBarKineticActions]
+    // Description: Menu bar handlers for toggling Inertial, Momentum, Smooth Scrolling, and switching Kinetic Profiles.
+    // MARK: - Kinetic & Inertial Scrolling Actions
+    
+    @objc private func toggleInertialScrolling() {
+        let settings = SettingsStore.shared
+        let current = settings.inertialScrolling && !settings.freezeOnRelease
+        settings.inertialScrolling = !current
+        if !current {
+            settings.freezeOnRelease = false
+        }
+        rebuildMenu()
+    }
+    
+    @objc private func toggleMomentumScrolling() {
+        SettingsStore.shared.momentumScrolling.toggle()
+        rebuildMenu()
+    }
+    
+    @objc private func toggleSmoothScrolling() {
+        SettingsStore.shared.smoothScrollingEnabled.toggle()
+        rebuildMenu()
+    }
+    
+    @objc private func selectKineticProfile(_ sender: NSMenuItem) {
+        if let profile = sender.representedObject as? KineticScrollingProfile {
+            SettingsStore.shared.kineticScrollingProfile = profile
+            rebuildMenu()
+        }
+    }
+    // [END LOCKED SECTION: PERFECT_SCROLLING_PHYSICS_ENGINE:StatusBarKineticActions]
     
     // MARK: - Tab Actions
     

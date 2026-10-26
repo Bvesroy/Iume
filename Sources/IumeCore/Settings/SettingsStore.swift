@@ -12,6 +12,7 @@ import ServiceManagement
 public final class SettingsStore: ObservableObject {
     public static let shared = SettingsStore()
     public nonisolated static let defaultsDomain = "com.iume.Iume"
+    public nonisolated static let defaultPresetWidthRatios: [Double] = [0.25, 0.333, 0.50, 0.667, 0.75, 1.0]
 
     /// The domain every preference lives in, for the few flags that are read outside this store
     /// (welcome dismissal, last settings pane). Using `.standard` here looks harmless in a
@@ -73,6 +74,11 @@ public final class SettingsStore: ObservableObject {
         static let edgeMarginLeft = "iume.edgeMarginLeft"
         static let edgeMarginRight = "iume.edgeMarginRight"
         static let scrollSmoothness = "iume.scrollSmoothness"
+        static let scrollDeceleration = "iume.scrollDeceleration"
+        static let inertialScrolling = "iume.inertialScrolling"
+        static let momentumMultiplier = "iume.momentumMultiplier"
+        static let kineticScrollingProfile = "iume.kineticScrollingProfile"
+        static let smoothScrollingEnabled = "iume.smoothScrollingEnabled"
         static let enableTransitions = "iume.enableTransitions"
         static let appsEdgeTogether = "iume.appsEdgeTogether"
         static let edgeSnapping = "iume.edgeSnapping"
@@ -213,6 +219,53 @@ public final class SettingsStore: ObservableObject {
             notifyChange()
         }
     }
+    
+    // [LOCKED SECTION: PERFECT_SCROLLING_PHYSICS_ENGINE:PhysicsSettingsProperties]
+    // Description: SettingsStore physics properties governing deceleration, inertia, momentum multiplier, profiles, and smoothness.
+    /// Exponential decay factor for inertial/momentum coasting (0.88 to 0.995; default 0.965).
+    /// Lower = higher friction (fast stop); Higher = lower friction (long glide).
+    @Published public var scrollDeceleration: Double {
+        didSet {
+            defaults.set(scrollDeceleration, forKey: Keys.scrollDeceleration)
+            notifyChange()
+        }
+    }
+    
+    /// Whether scrolling continues on inertia after fingers leave the trackpad.
+    @Published public var inertialScrolling: Bool {
+        didSet {
+            defaults.set(inertialScrolling, forKey: Keys.inertialScrolling)
+            if inertialScrolling && freezeOnRelease {
+                freezeOnRelease = false
+            }
+            notifyChange()
+        }
+    }
+    
+    /// Multiplier scaling gesture velocity into inertial coasting momentum (0.5x to 2.5x; default 1.0x).
+    @Published public var momentumMultiplier: Double {
+        didSet {
+            defaults.set(momentumMultiplier, forKey: Keys.momentumMultiplier)
+            notifyChange()
+        }
+    }
+    
+    /// Physics simulation profile governing kinetic deceleration and drag.
+    @Published public var kineticScrollingProfile: KineticScrollingProfile {
+        didSet {
+            defaults.set(kineticScrollingProfile.rawValue, forKey: Keys.kineticScrollingProfile)
+            notifyChange()
+        }
+    }
+    
+    /// When true, transitions and discrete position steps (wheel, keyboard, targets) interpolate smoothly.
+    @Published public var smoothScrollingEnabled: Bool {
+        didSet {
+            defaults.set(smoothScrollingEnabled, forKey: Keys.smoothScrollingEnabled)
+            notifyChange()
+        }
+    }
+    // [END LOCKED SECTION: PERFECT_SCROLLING_PHYSICS_ENGINE:PhysicsSettingsProperties]
     
     @Published public var enableTransitions: Bool {
         didSet {
@@ -481,7 +534,13 @@ public final class SettingsStore: ObservableObject {
         didSet { defaults.set(fullWidthToggleRestoresRatio, forKey: Keys.fullWidthToggleRestoresRatio); notifyChange() }
     }
     @Published public var freezeOnRelease: Bool {
-        didSet { defaults.set(freezeOnRelease, forKey: Keys.freezeOnRelease); notifyChange() }
+        didSet {
+            defaults.set(freezeOnRelease, forKey: Keys.freezeOnRelease)
+            if freezeOnRelease && inertialScrolling {
+                inertialScrolling = false
+            }
+            notifyChange()
+        }
     }
     @Published public var freeformScroll: Bool {
         didSet { defaults.set(freeformScroll, forKey: Keys.freeformScroll); notifyChange() }
@@ -525,6 +584,11 @@ public final class SettingsStore: ObservableObject {
             self.scrollTriggerMode = memorySnapshot.scrollTriggerMode
             self.scrollSensitivity = memorySnapshot.scrollSensitivity
             self.scrollSmoothness = memorySnapshot.scrollSmoothness
+            self.scrollDeceleration = memorySnapshot.scrollDeceleration
+            self.inertialScrolling = memorySnapshot.inertialScrolling
+            self.momentumMultiplier = memorySnapshot.momentumMultiplier
+            self.kineticScrollingProfile = memorySnapshot.kineticScrollingProfile
+            self.smoothScrollingEnabled = memorySnapshot.smoothScrollingEnabled
             self.enableTransitions = memorySnapshot.enableTransitions
             self.momentumScrolling = memorySnapshot.momentumScrolling
             self.showMinimapHUD = memorySnapshot.showMinimapHUD
@@ -602,6 +666,12 @@ public final class SettingsStore: ObservableObject {
             self.scrollTriggerMode = ScrollTriggerMode(rawValue: savedTrigger) ?? .seamlessHorizontal
             self.scrollSensitivity = (defaults.object(forKey: Keys.scrollSensitivity) ?? suiteDefaults.object(forKey: Keys.scrollSensitivity)) as? Double ?? 1.0
             self.scrollSmoothness = (defaults.object(forKey: Keys.scrollSmoothness) ?? suiteDefaults.object(forKey: Keys.scrollSmoothness)) as? Double ?? 0.75
+            self.scrollDeceleration = (defaults.object(forKey: Keys.scrollDeceleration) ?? suiteDefaults.object(forKey: Keys.scrollDeceleration)) as? Double ?? 0.965
+            self.inertialScrolling = (defaults.object(forKey: Keys.inertialScrolling) ?? suiteDefaults.object(forKey: Keys.inertialScrolling)) as? Bool ?? true
+            self.momentumMultiplier = (defaults.object(forKey: Keys.momentumMultiplier) ?? suiteDefaults.object(forKey: Keys.momentumMultiplier)) as? Double ?? 1.0
+            let savedKineticProfile = (defaults.string(forKey: Keys.kineticScrollingProfile) ?? suiteDefaults.string(forKey: Keys.kineticScrollingProfile)) ?? KineticScrollingProfile.natural.rawValue
+            self.kineticScrollingProfile = KineticScrollingProfile(rawValue: savedKineticProfile) ?? .natural
+            self.smoothScrollingEnabled = (defaults.object(forKey: Keys.smoothScrollingEnabled) ?? suiteDefaults.object(forKey: Keys.smoothScrollingEnabled)) as? Bool ?? true
             self.enableTransitions = (defaults.object(forKey: Keys.enableTransitions) ?? suiteDefaults.object(forKey: Keys.enableTransitions)) as? Bool ?? true
             self.momentumScrolling = (defaults.object(forKey: Keys.momentumScrolling) ?? suiteDefaults.object(forKey: Keys.momentumScrolling)) as? Bool ?? true
             self.showMinimapHUD = (defaults.object(forKey: Keys.showMinimapHUD) ?? suiteDefaults.object(forKey: Keys.showMinimapHUD)) as? Bool ?? true
@@ -622,7 +692,7 @@ public final class SettingsStore: ObservableObject {
             self.dimUnfocusedWindows = (defaults.object(forKey: Keys.dimUnfocusedWindows) ?? suiteDefaults.object(forKey: Keys.dimUnfocusedWindows)) as? Bool ?? false
             self.dragToReorder = (defaults.object(forKey: Keys.dragToReorder) ?? suiteDefaults.object(forKey: Keys.dragToReorder)) as? Bool ?? true
             
-            self.presetWidthRatios = (defaults.object(forKey: Keys.presetWidthRatios) ?? suiteDefaults.object(forKey: Keys.presetWidthRatios)) as? [Double] ?? [0.25, 0.333, 0.50, 0.667, 0.75, 1.0]
+            self.presetWidthRatios = (defaults.object(forKey: Keys.presetWidthRatios) ?? suiteDefaults.object(forKey: Keys.presetWidthRatios)) as? [Double] ?? SettingsStore.defaultPresetWidthRatios
             self.useLegacyOptionShortcuts = (defaults.object(forKey: Keys.useLegacyOptionShortcuts) ?? suiteDefaults.object(forKey: Keys.useLegacyOptionShortcuts)) as? Bool ?? false
             
             let shortcutData = defaults.data(forKey: Keys.shortcutBindings) ?? suiteDefaults.data(forKey: Keys.shortcutBindings)
@@ -729,6 +799,11 @@ public final class SettingsStore: ObservableObject {
             scrollTriggerMode: scrollTriggerMode,
             scrollSensitivity: scrollSensitivity,
             scrollSmoothness: scrollSmoothness,
+            scrollDeceleration: scrollDeceleration,
+            inertialScrolling: inertialScrolling,
+            momentumMultiplier: momentumMultiplier,
+            kineticScrollingProfile: kineticScrollingProfile,
+            smoothScrollingEnabled: smoothScrollingEnabled,
             enableTransitions: enableTransitions,
             momentumScrolling: momentumScrolling,
             magneticSnapTransition: magneticSnapTransition,
@@ -795,6 +870,11 @@ public final class SettingsStore: ObservableObject {
         self.scrollTriggerMode = snapshot.scrollTriggerMode
         self.scrollSensitivity = snapshot.scrollSensitivity
         self.scrollSmoothness = snapshot.scrollSmoothness
+        self.scrollDeceleration = snapshot.scrollDeceleration
+        self.inertialScrolling = snapshot.inertialScrolling
+        self.momentumMultiplier = snapshot.momentumMultiplier
+        self.kineticScrollingProfile = snapshot.kineticScrollingProfile
+        self.smoothScrollingEnabled = snapshot.smoothScrollingEnabled
         self.enableTransitions = snapshot.enableTransitions
         self.momentumScrolling = snapshot.momentumScrolling
         self.showMinimapHUD = snapshot.showMinimapHUD
@@ -943,6 +1023,11 @@ public final class SettingsStore: ObservableObject {
         defaults.set(scrollTriggerMode.rawValue, forKey: Keys.scrollTriggerMode)
         defaults.set(scrollSensitivity, forKey: Keys.scrollSensitivity)
         defaults.set(scrollSmoothness, forKey: Keys.scrollSmoothness)
+        defaults.set(scrollDeceleration, forKey: Keys.scrollDeceleration)
+        defaults.set(inertialScrolling, forKey: Keys.inertialScrolling)
+        defaults.set(momentumMultiplier, forKey: Keys.momentumMultiplier)
+        defaults.set(kineticScrollingProfile.rawValue, forKey: Keys.kineticScrollingProfile)
+        defaults.set(smoothScrollingEnabled, forKey: Keys.smoothScrollingEnabled)
         defaults.set(enableTransitions, forKey: Keys.enableTransitions)
         defaults.set(momentumScrolling, forKey: Keys.momentumScrolling)
         defaults.set(showMinimapHUD, forKey: Keys.showMinimapHUD)

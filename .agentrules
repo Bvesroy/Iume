@@ -1,0 +1,23 @@
+# AGENT GOVERNANCE RULES: IUME CODEBASE
+
+## CRITICAL SCROLLING PHYSICS INTEGRITY POLICY
+Sections enclosed in:
+`// [LOCKED SECTION: PERFECT_SCROLLING_PHYSICS_ENGINE:<id>]`
+and
+`// [END LOCKED SECTION: PERFECT_SCROLLING_PHYSICS_ENGINE:<id>]`
+
+contain the verified, user-confirmed "perfect scrolling" physics engine.
+
+### MANDATORY AGENT CONSTRAINTS:
+1. **NO UNPROMPTED EDITS**: Do NOT edit, refactor, reformat, delete, or modify any lines between these lock markers under any circumstances without explicit authorization from the user.
+2. **PASSWORD CHALLENGE REQUIRED**: If the user or a task instructs you to modify any locked scrolling physics, you MUST pause and ask the user for the password first.
+3. **UNLOCK PROTOCOL**:
+   - Once the user provides the password, run:
+     `python3 tools/scroll_lock.py unlock --password "<PASSWORD>"`
+   - Perform the required edits.
+   - Run audit tests to verify stability:
+     `bash scripts/audit/run-all-tests.sh`
+   - Relock the updated sections:
+     `python3 tools/scroll_lock.py relock --password "<PASSWORD>"`
+4. **AUTOMATED PRE-COMMIT GATE**:
+   Git pre-commit hooks actively verify the SHA-256 integrity of all 11 locked sections against `.scroll_lock.json`. Unauthenticated commits touching these sections will fail automatically.

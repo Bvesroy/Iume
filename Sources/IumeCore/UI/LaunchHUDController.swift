@@ -56,8 +56,8 @@ public final class LaunchHUDController: ObservableObject {
         let hostingView = NSHostingView(rootView: view)
         
         let win = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 500, height: 490),
-            styleMask: [.titled, .closable, .fullSizeContentView],
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 680),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -68,6 +68,8 @@ public final class LaunchHUDController: ObservableObject {
         win.isReleasedWhenClosed = false
         win.level = .floating
         win.contentView = hostingView
+        win.minSize = NSSize(width: 480, height: 480)
+        win.maxSize = NSSize(width: 600, height: 950)
         win.standardWindowButton(.miniaturizeButton)?.isHidden = true
         win.standardWindowButton(.zoomButton)?.isHidden = true
         
@@ -81,12 +83,23 @@ public final class LaunchHUDController: ObservableObject {
             return
         }
         
+        // [LOCKED SECTION: PERFECT_SCROLLING_PHYSICS_ENGINE:HUDKickstartPhysicsActivation]
+        // Description: LaunchHUD kickstart trigger guaranteeing all 5 scrolling physics dimensions are engaged.
+        // Ensure all 5 requested scrolling features are actively engaged
+        let settings = SettingsStore.shared
+        settings.freezeOnRelease = false
+        settings.inertialScrolling = true
+        settings.momentumScrolling = true
+        settings.smoothScrollingEnabled = true
+        // [END LOCKED SECTION: PERFECT_SCROLLING_PHYSICS_ENGINE:HUDKickstartPhysicsActivation]
+        
         isArranging = true
         let count = WorkspaceManager.shared.kickstart()
         lastArrangedCount = count
         StatusBarController.current?.rebuildMenu()
         
-        showTemporaryNotification(message: "✅ Arranged \(count) windows into continuous slide strip!", color: .green)
+        let profile = settings.kineticScrollingProfile.displayName
+        showTemporaryNotification(message: "✅ Kickstarted \(count) windows! Inertial, Momentum & Smooth Scrolling active (\(profile)).", color: .green)
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
             self?.isArranging = false
@@ -116,8 +129,9 @@ public struct LaunchHUDView: View {
     @ObservedObject var permissions = PermissionManager.shared
     
     public var body: some View {
-        VStack(spacing: 16) {
-            // Header
+        ScrollView(.vertical, showsIndicators: true) {
+            VStack(spacing: 14) {
+                // Header
             HStack(spacing: 12) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 12)
@@ -311,6 +325,156 @@ public struct LaunchHUDView: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
             
+            // [LOCKED SECTION: PERFECT_SCROLLING_PHYSICS_ENGINE:HUDScrollingDynamicsCard]
+            // Description: LaunchHUD control card for Inertial, Momentum, Friction, Kinetic Profiles, and Smooth Scrolling.
+            // Kinetic & Inertial Scrolling Dynamics (Inertial, Momentum, Friction, Kinetic, Smooth)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Image(systemName: "hand.point.up.left.and.text")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.blue)
+                    Text("Scrolling Dynamics & Physics")
+                        .font(.system(size: 12, weight: .bold))
+                    Spacer()
+                    if settings.inertialScrolling && !settings.freezeOnRelease {
+                        HStack(spacing: 4) {
+                            Circle().fill(Color.green).frame(width: 6, height: 6)
+                            Text("INERTIA ON")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(.green)
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.green.opacity(0.12))
+                        .cornerRadius(4)
+                    }
+                }
+                
+                // 1. Inertial Scrolling & 5. Smooth Scrolling Toggles
+                HStack(alignment: .top, spacing: 12) {
+                    Toggle(isOn: Binding(
+                        get: { settings.inertialScrolling && !settings.freezeOnRelease },
+                        set: { enabled in
+                            settings.inertialScrolling = enabled
+                            if enabled {
+                                settings.freezeOnRelease = false
+                            }
+                        }
+                    )) {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Inertial Scrolling")
+                                .font(.system(size: 11, weight: .semibold))
+                            Text("Continues after fingers lift")
+                                .font(.system(size: 9))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .toggleStyle(.checkbox)
+                    
+                    Spacer()
+                    
+                    Toggle(isOn: $settings.smoothScrollingEnabled) {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Smooth Scrolling")
+                                .font(.system(size: 11, weight: .semibold))
+                            Text("Interpolated gradual movement")
+                                .font(.system(size: 9))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .toggleStyle(.checkbox)
+                }
+                
+                Divider()
+                
+                // 2. Momentum Scrolling & Gesture Velocity Multiplier
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Toggle(isOn: $settings.momentumScrolling) {
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("Momentum Scrolling")
+                                    .font(.system(size: 11, weight: .semibold))
+                                Text("Driven by release velocity")
+                                    .font(.system(size: 9))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .toggleStyle(.checkbox)
+                        .disabled(!settings.inertialScrolling || settings.freezeOnRelease)
+                        
+                        Spacer()
+                        
+                        HStack(spacing: 4) {
+                            Text("Multiplier:")
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                            Text(String(format: "%.1f×", settings.momentumMultiplier))
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            Slider(value: $settings.momentumMultiplier, in: 0.5...2.5, step: 0.1)
+                                .frame(width: 75)
+                        }
+                        .disabled(!settings.inertialScrolling || !settings.momentumScrolling || settings.freezeOnRelease)
+                    }
+                }
+                
+                Divider()
+                
+                // 3. Deceleration / Friction
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack {
+                        Text("Deceleration / Friction")
+                            .font(.system(size: 11, weight: .semibold))
+                        Spacer()
+                        Text(String(format: "Factor: %.3f", settings.scrollDeceleration))
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .foregroundColor(.purple)
+                    }
+                    
+                    Slider(value: $settings.scrollDeceleration, in: 0.88...0.995, step: 0.005)
+                    
+                    HStack(spacing: 6) {
+                        frictionPresetButton("Snappy (0.910)", rate: 0.910, desc: "Quick Stop")
+                        frictionPresetButton("Natural (0.965)", rate: 0.965, desc: "Standard Glide")
+                        frictionPresetButton("Slick (0.985)", rate: 0.985, desc: "Long Coast")
+                    }
+                }
+                
+                Divider()
+                
+                // 4. Kinetic Scrolling Profile
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack {
+                        Text("Kinetic Scrolling Profile")
+                            .font(.system(size: 11, weight: .semibold))
+                        Spacer()
+                        Text(settings.kineticScrollingProfile.displayName)
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.blue)
+                    }
+                    
+                    Picker("", selection: $settings.kineticScrollingProfile) {
+                        ForEach(KineticScrollingProfile.allCases) { profile in
+                            Text(profile.displayName).tag(profile)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    
+                    Text(settings.kineticScrollingProfile.description)
+                        .font(.system(size: 9))
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
+            }
+            .padding(12)
+            .background(Color(NSColor.controlBackgroundColor).opacity(0.85))
+            .cornerRadius(10)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+            )
+            .padding(.horizontal)
+            // [END LOCKED SECTION: PERFECT_SCROLLING_PHYSICS_ENGINE:HUDScrollingDynamicsCard]
+            
             // Quick Column Width Presets
             VStack(alignment: .leading, spacing: 8) {
                 Text("Column Width Presets")
@@ -423,9 +587,38 @@ public struct LaunchHUDView: View {
             }
             .padding(.horizontal)
             .padding(.bottom, 12)
+            }
+            .padding(.vertical, 14)
         }
-        .frame(width: 500)
+        .frame(width: 520)
+        .frame(minHeight: 520, maxHeight: 720)
         .background(VisualEffectView(material: .hudWindow, blendingMode: .behindWindow))
+    }
+    
+    private func frictionPresetButton(_ title: String, rate: Double, desc: String) -> some View {
+        let isSelected = abs(settings.scrollDeceleration - rate) < 0.006
+        return Button(action: {
+            settings.scrollDeceleration = rate
+        }) {
+            VStack(spacing: 1) {
+                Text(title)
+                    .font(.system(size: 10, weight: isSelected ? .bold : .regular))
+                Text(desc)
+                    .font(.system(size: 8))
+                    .foregroundColor(isSelected ? .purple : .secondary)
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity)
+            .background(isSelected ? Color.purple.opacity(0.2) : Color(NSColor.controlBackgroundColor))
+            .foregroundColor(isSelected ? .purple : .primary)
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(isSelected ? Color.purple : Color.clear, lineWidth: 1)
+            )
+            .cornerRadius(6)
+        }
+        .buttonStyle(.plain)
     }
     
     private func presetButton(_ title: String, ratio: Double) -> some View {

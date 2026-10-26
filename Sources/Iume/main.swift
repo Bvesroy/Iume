@@ -1,51 +1,65 @@
 import AppKit
 import IumeCore
+import Combine
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController?
+    private var cancellables = Set<AnyCancellable>()
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         print("[Iume] Initializing Native macOS Scrolling Window Manager...")
+
+        // Translocation / /Applications guard — §13.5
+        let bundlePath = Bundle.main.bundlePath
+        let isTranslocated = bundlePath.contains("AppTranslocation")
+        let isInApplications = bundlePath.hasPrefix("/Applications/") || bundlePath.hasPrefix(NSHomeDirectory() + "/Applications/")
+        if isTranslocated || !isInApplications {
+            print("[Iume] Warning: Running from \(bundlePath) — move Iume.app to /Applications to preserve Accessibility grants.")
+        }
         
         // Initialize menu bar icon and controls
         statusBarController = StatusBarController()
-        
-        // Listen for runtime permission grants and bootstrap automatically
-        PermissionManager.shared.onPermissionStateChanged = { [weak self] granted in
-            guard let self = self else { return }
-            if granted {
-                print("[Iume] Accessibility permission granted! Bootstrapping window management...")
-                WorkspaceManager.shared.start()
-            } else {
-                print("[Iume] Accessibility permission revoked. Pausing window management.")
-                WorkspaceManager.shared.stop()
+
+        // Single-owner permission observation via Combine on PermissionManager.$hasAccessibilityPermission.
+        // No competing onPermissionStateChanged closure here — WorkspaceManager is the sole owner.
+        // This subscription only rebuilds the menu and logs; engine start/stop is owned by WorkspaceManager.
+        PermissionManager.shared.$hasAccessibilityPermission
+            .receive(on: RunLoop.main)
+            .sink { [weak self] granted in
+                if granted {
+                    print("[Iume] Accessibility permission granted (observed in AppDelegate).")
+                } else {
+                    print("[Iume] Accessibility permission not granted.")
+                }
+                self?.statusBarController?.rebuildMenu()
             }
-            self.statusBarController?.rebuildMenu()
+            .store(in: &cancellables)
+        
+        // Bootstrap engine if already trusted (PermissionManager initial check); otherwise wait for grant.
+        // WorkspaceManager.start() guards internally on PermissionManager.
+        if PermissionManager.shared.hasAccessibilityPermission {
+            WorkspaceManager.shared.start()
+            print("[Iume] Accessibility permission active. Strip layout online.")
+        } else {
+            print("[Iume] Accessibility permission not granted yet. Show onboarding card — not auto-prompting.")
+            // Do NOT call promptForAccessibility() or openSettings() unconditionally.
+            // User must click the onboarding card button to trigger the single system prompt (§13.5).
         }
         
-        // Start workspace orchestration
-        WorkspaceManager.shared.start()
-        
-        // Show Launch & Kickstart Control Panel so user can immediately kickstart window arrangement
+        // Show Launch & Kickstart Control Panel
         LaunchHUDController.shared.show()
         
         if CommandLine.arguments.contains("--kickstart") || CommandLine.arguments.contains("-k") {
             WorkspaceManager.shared.kickstart()
         }
-        
-        // If accessibility is missing, prompt user
-        if !PermissionManager.shared.hasAccessibilityPermission {
-            print("[Iume] Accessibility permission not granted yet. Prompting user...")
-            PermissionManager.shared.promptForAccessibility()
-            statusBarController?.openSettings()
-        } else {
-            print("[Iume] Accessibility permission active. Strip layout online.")
-        }
     }
     
     func applicationWillTerminate(_ notification: Notification) {
-        WorkspaceManager.shared.stop()
+        // Teardown must not turn an enabled installation into a persisted manual stop.
+        // User-triggered Stop still records isEnabled=false; process termination only
+        // releases runtime resources and preserves the user's management choice.
+        WorkspaceManager.shared.stop(preserveEnabledState: true)
     }
 }
 
@@ -82,4 +96,3 @@ sigtermSource.setEventHandler {
 sigtermSource.resume()
 
 app.run()
-

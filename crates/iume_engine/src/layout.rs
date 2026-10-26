@@ -115,6 +115,22 @@ pub fn max_scroll_offset_views(
             let last_center = last_offset + last_width / 2.0 - visible_width / 2.0;
             base_max.max(last_center.max(0.0))
         }
+        CenterMode::OnOverflow => {
+            if total_width > visible_width {
+                let mut cursor = 0.0;
+                let mut last_offset = 0.0;
+                let mut last_width = 0.0;
+                for col in columns {
+                    last_offset = cursor;
+                    last_width = col.width;
+                    cursor += col.width + gap;
+                }
+                let last_center = last_offset + last_width / 2.0 - visible_width / 2.0;
+                base_max.max(last_center.max(0.0))
+            } else {
+                base_max
+            }
+        }
         _ => base_max,
     }
 }
@@ -137,6 +153,16 @@ pub fn max_scroll_offset(
             if let (Some(last_col), Some(last_offset)) = (columns.last(), offsets.last()) {
                 let last_center = *last_offset + last_col.width / 2.0 - visible_width / 2.0;
                 return base_max.max(last_center.max(0.0));
+            }
+            base_max
+        }
+        CenterMode::OnOverflow => {
+            if total_width > visible_width {
+                let offsets = column_strip_offsets(columns, gap);
+                if let (Some(last_col), Some(last_offset)) = (columns.last(), offsets.last()) {
+                    let last_center = *last_offset + last_col.width / 2.0 - visible_width / 2.0;
+                    return base_max.max(last_center.max(0.0));
+                }
             }
             base_max
         }
@@ -288,7 +314,7 @@ pub fn compute_layout_views(
         if col_screen_x + col_width <= min_visible_x + sliver {
             final_screen_x = min_visible_x - col_width + sliver;
             is_parked = true;
-        } else if col_screen_x >= max_visible_x - sliver.max(35.0) {
+        } else if col_screen_x >= max_visible_x - sliver {
             final_screen_x = max_visible_x - sliver;
             is_parked = true;
         }

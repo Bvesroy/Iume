@@ -25,23 +25,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.6.0] - 2026-10-19 (Rust Strip Engine — Deterministic Layout, Spring & Magnetic Math)
+## [2.6.0] - 2026-10-19 (Rust Strip Engine — Deterministic Math Library)
+
+> **Correction (2026-10-26):** The integration claims in this entry were
+> overstated. In the shipped Swift app only `MagneticWindowEngine` calls
+> `RustEngine` (magnetic snap evaluation, chained neighbour frames and seam
+> ratio). `LayoutEngine`, the viewport/snap math and `ScrollController`'s
+> spring remain pure Swift. The Rust crate is a deterministic parity reference
+> and an optional accelerator, not the live layout or scrolling path.
 
 ### Added & Polished
 - **🦀 Rust Strip Engine (`crates/iume_engine`)**:
-  - New dependency-free Rust crate (~3,000 lines) that owns every hot-path calculation: strip geometry, viewport projection and snapping, the harmonic spring integrator, and magnetic adhesion.
-  - **Zero hot-path allocation**: layout is written into a caller-owned fixed-capacity frame buffer, so scrolling no longer allocates per frame.
+  - New dependency-free Rust crate (~3,000 lines) implementing strip geometry, viewport projection and snapping, a harmonic spring integrator, and magnetic adhesion. The Swift app currently exercises the magnetic paths; the layout and spring entry points are parity references.
+  - **Zero hot-path allocation**: layout is written into a caller-owned fixed-capacity frame buffer on the Rust side.
   - **Deterministic `f64` math** that matches Swift's `round()` and arithmetic exactly, keeping the two implementations in lockstep.
-  - Split into `layout`, `viewport`, `spring`, `magnetic` and `types` modules with **30 unit tests** covering viewport scroll parity, zero-gap edge margins, spring stability at 80/120/240 Hz, chained neighbour adhesion and seam snapping.
+  - Split into `layout`, `viewport`, `spring`, `magnetic` and `types` modules with **36 unit tests** covering viewport scroll parity, zero-gap edge margins, spring stability at 80/120/240 Hz, chained neighbour adhesion and seam snapping.
 - **🔗 Stable C ABI and Swift Facade**:
   - `Sources/CIumeEngine` exposes the engine through a versioned C header (`IUME_ABI_VERSION 1`) with `#[repr(C)]` structs and a thread-local frame buffer.
   - `Sources/IumeCore/Engine/RustEngine.swift` marshals columns, windows and stacks into flat buffers and copies results out before returning; every entry point is pure and thread-safe.
   - Floating-point-safe ABI: malformed input and empty strips are rejected rather than trapped, so callers keep working.
-- **🔀 Adopted on the Hottest Paths**:
-  - `LayoutEngine` now delegates `computeLayout`, `computeViewportOffset`, `maxScrollOffset`, `findClosestColumnIndex`, `computeSnapTarget` and column offsets to the Rust engine.
-  - `MagneticWindowEngine` delegates seam-ratio snapping, magnetic snap evaluation and chained neighbour frames.
-  - `ScrollController` uses the Rust spring integrator for every animation frame.
-  - The pure-Swift implementations are retained as the fallback and parity reference, so the existing suite keeps verifying computed layouts against hand-derived expectations rather than the engine agreeing with itself.
+- **🔀 Live Adoption (Corrected)**:
+  - `LayoutEngine` does **not** delegate `computeLayout`, `computeViewportOffset`, `maxScrollOffset`, `findClosestColumnIndex`, `computeSnapTarget` or column offsets to the Rust engine; those paths are Swift.
+  - `MagneticWindowEngine` delegates seam-ratio snapping, magnetic snap evaluation and chained neighbour frames to `RustEngine` when the library is available.
+  - `ScrollController` uses the Swift closed-form `Physics/SpringState.swift` solver for every animation frame. The Rust spring is a parity reference and is not wired into scrolling.
+  - The pure-Swift implementations remain the reference (and the magnetic fallback), so the existing suite keeps verifying computed layouts against hand-derived expectations rather than the engine agreeing with itself.
 - **🛠️ Reproducible Builds**:
   - Added `scripts/build-rust.sh` (the script `Package.swift` links against) with toolchain and artifact checks.
   - `build.sh`, `build-release.sh` and `package.sh` now build the Rust engine first, so a clean clone links without manual `cargo` steps.

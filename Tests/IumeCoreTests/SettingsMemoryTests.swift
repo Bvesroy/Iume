@@ -47,6 +47,11 @@ final class SettingsMemoryTests: XCTestCase {
             scrollTriggerMode: .seamlessHorizontal,
             scrollSensitivity: 1.2,
             scrollSmoothness: 0.8,
+            scrollDeceleration: 0.945,
+            inertialScrolling: true,
+            momentumMultiplier: 1.5,
+            kineticScrollingProfile: .viscous,
+            smoothScrollingEnabled: true,
             enableTransitions: true,
             momentumScrolling: true,
             magneticSnapTransition: .liquidSpring,
@@ -88,6 +93,11 @@ final class SettingsMemoryTests: XCTestCase {
         XCTAssertEqual(decoded.loopMode, original.loopMode)
         XCTAssertEqual(decoded.hudStyle, original.hudStyle)
         XCTAssertEqual(decoded.hudSoundVolume, original.hudSoundVolume, accuracy: 0.001)
+        XCTAssertEqual(decoded.scrollDeceleration, original.scrollDeceleration, accuracy: 0.001)
+        XCTAssertEqual(decoded.inertialScrolling, original.inertialScrolling)
+        XCTAssertEqual(decoded.momentumMultiplier, original.momentumMultiplier, accuracy: 0.001)
+        XCTAssertEqual(decoded.kineticScrollingProfile, original.kineticScrollingProfile)
+        XCTAssertEqual(decoded.smoothScrollingEnabled, original.smoothScrollingEnabled)
         XCTAssertEqual(decoded.appsEdgeTogether, original.appsEdgeTogether)
         XCTAssertEqual(decoded.launchAtLogin, original.launchAtLogin)
         XCTAssertEqual(decoded.excludedBundleIdentifiers, original.excludedBundleIdentifiers)

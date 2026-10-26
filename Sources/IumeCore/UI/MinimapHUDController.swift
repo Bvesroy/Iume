@@ -994,7 +994,7 @@ public final class MinimapHUDController: ObservableObject {
         presentationToken &+= 1
         isFadingIn = true
         isFadingOut = false
-        p.orderFront(nil)
+        p.orderFrontRegardless()
 
         if animated && p.alphaValue < 0.99 {
             NSAnimationContext.runAnimationGroup({ ctx in

@@ -110,16 +110,35 @@ public final class MacSetupChecker: ObservableObject {
             recommendation: !stageManagerOn ? "Optimal" : "Turn Stage Manager OFF in Control Center or System Settings > Desktop & Dock."
         ))
         
-        // 6. macOS 15+ Native Window Tiling Gestures
-        let edgeTilingRef = CFPreferencesCopyAppValue("EnableTilingByEdgeDrag" as CFString, "com.apple.WindowManager" as CFString)
-        let edgeTilingOn = (edgeTilingRef as? NSNumber)?.boolValue ?? false
+        // 6. macOS 15+ Native Window Tiling Gestures — ANY of the three enables tiling (OR)
+        let tilingKeys = ["EnableTilingByEdgeDrag", "EnableTopTilingByEdgeDrag", "EnableTilingOptionAccelerator"]
+        var anyTilingOn = false
+        for key in tilingKeys {
+            if let ref = CFPreferencesCopyAppValue(key as CFString, "com.apple.WindowManager" as CFString) as? NSNumber, ref.boolValue {
+                anyTilingOn = true
+                break
+            }
+        }
+        // Also check top tiling if not already found
         items.append(SetupCheckItem(
             id: "edge_tiling",
             title: "macOS 15 Edge Drag Tiling",
             category: "macOS Settings",
-            isOptimal: !edgeTilingOn,
-            statusMessage: !edgeTilingOn ? "Disabled (Clean Dragging)" : "Enabled",
-            recommendation: !edgeTilingOn ? "Optimal" : "Disable 'Tile by dragging windows to screen edges' in Desktop & Dock settings to avoid accidental macOS snapping."
+            isOptimal: !anyTilingOn,
+            statusMessage: !anyTilingOn ? "Disabled (Clean Dragging)" : "Enabled",
+            recommendation: !anyTilingOn ? "Optimal" : "Disable 'Tile by dragging windows to screen edges' in Desktop & Dock settings to avoid accidental macOS snapping."
+        ))
+        
+        // 6b. workspaces-auto-swoosh (switch to Space with open windows) — §14.3
+        let swooshRef = CFPreferencesCopyAppValue("workspaces-auto-swoosh" as CFString, "com.apple.dock" as CFString)
+        let swooshOn = (swooshRef as? NSNumber)?.boolValue ?? false
+        items.append(SetupCheckItem(
+            id: "auto_swoosh",
+            title: "Auto-switch to Space with App Windows",
+            category: "macOS Settings",
+            isOptimal: !swooshOn,
+            statusMessage: !swooshOn ? "Off (Optimal)" : "On (May jump Spaces on settle)",
+            recommendation: !swooshOn ? "Optimal" : "Turn OFF 'workspaces-auto-swoosh' in System Settings > Desktop & Dock to prevent jumps to other Spaces."
         ))
         
         // 7. Conflicting Window Managers
@@ -130,7 +149,14 @@ public final class MacSetupChecker: ObservableObject {
             ("bobko.aerospace", "AeroSpace"),
             ("com.koekeishiya.yabai", "yabai"),
             ("com.MrKai77.Loop", "Loop"),
-            ("com.manytricks.Moom", "Moom")
+            ("com.manytricks.Moom", "Moom"),
+            ("com.hegenstar.BetterTouchTool", "BetterTouchTool"),
+            ("com.mizage.divvy", "Divvy"),
+            ("com.spectacleapp.Spectacle", "Spectacle"),
+            ("org.hammerspoon.Hammerspoon", "Hammerspoon"),
+            ("com.michaelvillar.paperwm.spoon", "PaperWM.spoon"),
+            ("com.swishapp.Swish", "Swish"),
+            ("com.betterSnapTool.BetterSnapTool", "BetterSnapTool")
         ]
         
         let runningBundleIds = Set(NSWorkspace.shared.runningApplications.compactMap { $0.bundleIdentifier })
@@ -148,9 +174,32 @@ public final class MacSetupChecker: ObservableObject {
         ))
         
         // 8. Trackpad Horizontal Desktop Swipe Conflict
-        let threeFingerSwipe = (CFPreferencesCopyAppValue("TrackpadThreeFingerHorizSwipeGesture" as CFString, "com.apple.AppleMultitouchTrackpad" as CFString) as? NSNumber)?.intValue ?? 0
-        let fourFingerSwipe = (CFPreferencesCopyAppValue("TrackpadFourFingerHorizSwipeGesture" as CFString, "com.apple.AppleMultitouchTrackpad" as CFString) as? NSNumber)?.intValue ?? 2
-        let swipeConflict = (threeFingerSwipe == 2 || fourFingerSwipe == 2)
+        // Must read -currentHost + global trackpad domain; Magic Trackpad uses different domain (§20 #5)
+        func readSwipeGesture(_ key: String) -> Int {
+            // Try -currentHost first (per-host), then global, then app domain
+            if let hostRef = CFPreferencesCopyValue(key as CFString, "com.apple.AppleMultitouchTrackpad" as CFString, kCFPreferencesCurrentHost as CFString, kCFPreferencesAnyUser as CFString) as? NSNumber {
+                return hostRef.intValue
+            }
+            if let globalRef = CFPreferencesCopyValue(key as CFString, "com.apple.trackpad.threeFingerHorizSwipeGesture" as CFString, kCFPreferencesAnyHost as CFString, kCFPreferencesAnyUser as CFString) as? NSNumber {
+                return globalRef.intValue
+            }
+            // Fallback to standard app domain reads (also check com.apple.trackpad.* keys)
+            for domain in ["com.apple.AppleMultitouchTrackpad", "com.apple.driver.AppleBluetoothMultitouch.trackpad", "com.apple.trackpad"] as [CFString] {
+                if let ref = CFPreferencesCopyAppValue(key as CFString, domain) as? NSNumber {
+                    // Return if non-default; otherwise continue to find host override
+                    if ref.intValue != 0 { return ref.intValue }
+                }
+            }
+            return 0
+        }
+        // Check both 3 and 4 finger keys across domains; also check short-form keys in com.apple.trackpad
+        let threeFingerSwipe = readSwipeGesture("TrackpadThreeFingerHorizSwipeGesture")
+        let threeFingerShort = readSwipeGesture("threeFingerHorizSwipeGesture")
+        let fourFingerSwipe = readSwipeGesture("TrackpadFourFingerHorizSwipeGesture")
+        let fourFingerShort = readSwipeGesture("fourFingerHorizSwipeGesture")
+        let effectiveThree = threeFingerSwipe != 0 ? threeFingerSwipe : threeFingerShort
+        let effectiveFour = fourFingerSwipe != 0 ? fourFingerSwipe : (fourFingerShort != 0 ? fourFingerShort : 2)
+        let swipeConflict = (effectiveThree == 2 || effectiveFour == 2)
         items.append(SetupCheckItem(
             id: "trackpad_swipe_conflict",
             title: "Trackpad Desktop Swipe Conflict",
@@ -219,6 +268,12 @@ public final class MacSetupChecker: ObservableObject {
             CFPreferencesSetAppValue("TrackpadFourFingerHorizSwipeGesture" as CFString, 0 as CFNumber, domain)
             CFPreferencesAppSynchronize(domain)
         }
+        // Also clear -currentHost host-specific overrides
+        for key in ["TrackpadThreeFingerHorizSwipeGesture", "TrackpadFourFingerHorizSwipeGesture"] as [CFString] {
+            CFPreferencesSetValue(key, 0 as CFNumber, "com.apple.AppleMultitouchTrackpad" as CFString, kCFPreferencesCurrentUser as CFString, kCFPreferencesCurrentHost as CFString)
+            CFPreferencesSetValue(key, 0 as CFNumber, "com.apple.driver.AppleBluetoothMultitouch.trackpad" as CFString, kCFPreferencesCurrentUser as CFString, kCFPreferencesCurrentHost as CFString)
+        }
+        CFPreferencesAppSynchronize(kCFPreferencesCurrentApplication as CFString)
         refreshChecks()
     }
 }

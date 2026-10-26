@@ -774,7 +774,7 @@ public struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Smooth Scrolling Studio")
                                 .font(.headline)
-                            Text("Harmonic 120Hz ProMotion spring solver & input dampening")
+                            Text("Wheel, coast & settle dynamics · direct touch stays low-latency")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -782,6 +782,11 @@ public struct SettingsView: View {
                     }
                     
                     SmoothScrollWheelView(smoothness: $settings.scrollSmoothness)
+
+                    Text("Smooth Scrolling: Gradual movement between positions; governs wheel interpolation and settle dynamics without relying on gesture momentum. Direct two-finger tracking remains deterministic 1:1 resampled.")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(16)
                 .background(settingsCardBackground)
@@ -834,25 +839,57 @@ public struct SettingsView: View {
                 .padding(14)
                 .background(settingsCardBackground)
                 
-                // Physics Sliders Card
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Physics Tuning")
+                // Physics Tuning & Deceleration / Friction Card
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("Deceleration & Friction")
                         .font(.caption)
                         .fontWeight(.semibold)
                         .foregroundColor(.secondary)
                         .textCase(.uppercase)
-                    
+
                     HStack {
-                        Text("Scroll Sensitivity:")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Deceleration Factor:")
+                                .font(.body)
+                                .fontWeight(.medium)
+                            Text("Governs how quickly scrolling slows down after release")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Text(String(format: "%.3f", settings.scrollDeceleration))
+                            .fontWeight(.semibold)
+                            .monospacedDigit()
+                    }
+                    HStack {
+                        Text("High Friction (Fast Stop)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text("Low Friction (Long Glide)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    Slider(value: $settings.scrollDeceleration, in: 0.88...0.995, step: 0.005)
+
+                    Divider()
+
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Scroll Sensitivity:")
+                            Text("Trackpad / wheel delta multiplier")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
                         Spacer()
                         Text(String(format: "%.1f×", settings.scrollSensitivity))
                             .fontWeight(.semibold)
                             .monospacedDigit()
                     }
                     Slider(value: $settings.scrollSensitivity, in: 0.5...2.5, step: 0.1)
-                    
+
                     Divider()
-                    
+
                     HStack {
                         Text("Transition Animation Speed:")
                         Spacer()
@@ -861,6 +898,91 @@ public struct SettingsView: View {
                             .monospacedDigit()
                     }
                     Slider(value: $settings.animationDuration, in: 0.08...0.45, step: 0.02)
+                }
+                .padding(16)
+                .background(settingsCardBackground)
+
+                // Inertial, Momentum & Kinetic Scrolling Card
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("Inertial, Momentum & Kinetic Scrolling")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+
+                    Toggle(isOn: $settings.inertialScrolling) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Inertial Scrolling")
+                                .font(.body)
+                                .fontWeight(.medium)
+                            Text("Scrolling continues on inertia after your fingers leave the trackpad.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    if settings.inertialScrolling {
+                        Toggle(isOn: $settings.momentumScrolling) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Momentum Scrolling")
+                                    .font(.body)
+                                    .fontWeight(.medium)
+                                Text("Coasting effect driven directly by the release velocity of your gesture.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+
+                        if settings.momentumScrolling {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Gesture Velocity Multiplier:")
+                                        .font(.subheadline)
+                                    Text("Scales release speed into scrolling kinetic energy")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                Text(String(format: "%.1f×", settings.momentumMultiplier))
+                                    .fontWeight(.semibold)
+                                    .monospacedDigit()
+                            }
+                            Slider(value: $settings.momentumMultiplier, in: 0.5...2.5, step: 0.1)
+                        }
+
+                        Divider()
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Kinetic Scrolling Profile")
+                                .font(.body)
+                                .fontWeight(.medium)
+
+                            Picker("", selection: $settings.kineticScrollingProfile) {
+                                ForEach(KineticScrollingProfile.allCases) { profile in
+                                    Text(profile.displayName).tag(profile)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+
+                            Text(settings.kineticScrollingProfile.description)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+
+                    Divider()
+
+                    Toggle(isOn: $settings.smoothScrollingEnabled) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Smooth Scrolling")
+                                .font(.body)
+                                .fontWeight(.medium)
+                            Text("Gradual movement between positions; not necessarily momentum-based (mouse wheel notches, focus steps & programmatic jumps).")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
                 .padding(16)
                 .background(settingsCardBackground)
@@ -894,9 +1016,6 @@ public struct SettingsView: View {
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
-                    }
-                    if !settings.freezeOnRelease {
-                        Toggle("Inertial Momentum Coasting & Flings", isOn: $settings.momentumScrolling)
                     }
                     Toggle("Natural Scrolling Direction", isOn: $settings.trackpadNaturalScroll)
                     
@@ -1463,7 +1582,7 @@ public struct SmoothScrollWheelView: View {
                         .fixedSize(horizontal: false, vertical: true)
                     
                     HStack(spacing: 8) {
-                        telemetryBadge(title: "Response", val: "\(Int(max(60, 60 + smoothness * 220)))ms")
+                        telemetryBadge(title: "Settle", val: "\(Int(max(60, 60 + smoothness * 220)))ms")
                         telemetryBadge(title: "Damping", val: String(format: "%.2f", max(0.82, 0.96 - smoothness * 0.10)))
                         telemetryBadge(title: "VSYNC", val: "120Hz")
                     }
@@ -1510,11 +1629,11 @@ public struct SmoothScrollWheelView: View {
     
     private var feelingSubtext: String {
         if smoothness <= 0.30 {
-            return "Direct 1:1 trackpad tracking with minimal coasting; stops immediately when fingers lift."
+            return "Crisp wheel snap with minimal coasting; the strip stops immediately when fingers lift."
         } else if smoothness <= 0.60 {
             return "Natural macOS trackpad physics with crisp column latching."
         } else if smoothness <= 0.85 {
-            return "Harmonic ProMotion 120Hz spring interpolation with cushioned, jitter-free settling."
+            return "Harmonic wheel and settle interpolation with cushioned, jitter-free coasting."
         } else {
             return "Maximum inertial coasting with buttery elastic boundary resistance."
         }

@@ -35,10 +35,18 @@ public struct SettingsSnapshot: Codable, Sendable, Equatable {
     public var animationDuration: Double = 0.22
     public var trackpadNaturalScroll: Bool = true
     public var scrollTriggerMode: ScrollTriggerMode = .seamlessHorizontal
+    // [LOCKED SECTION: PERFECT_SCROLLING_PHYSICS_ENGINE:DefaultPhysicsSnapshotValues]
+    // Description: Default durable snapshot parameters for kinetic, inertial, momentum, and smooth scrolling.
     public var scrollSensitivity: Double = 1.0
     public var scrollSmoothness: Double = 0.75
+    public var scrollDeceleration: Double = 0.965
+    public var inertialScrolling: Bool = true
+    public var momentumMultiplier: Double = 1.0
+    public var kineticScrollingProfile: KineticScrollingProfile = .natural
+    public var smoothScrollingEnabled: Bool = true
     public var enableTransitions: Bool = true
     public var momentumScrolling: Bool = true
+    // [END LOCKED SECTION: PERFECT_SCROLLING_PHYSICS_ENGINE:DefaultPhysicsSnapshotValues]
     public var magneticSnapTransition: MagneticSnapTransitionStyle = .liquidSpring
     public var windowInsertionAnimation: WindowInsertionAnimationStyle = .partingWave
 
@@ -86,8 +94,8 @@ public struct SettingsSnapshot: Codable, Sendable, Equatable {
     public var tabOpenCloseEffect: TabOpenCloseEffect = .scaleFade
     public var tabMotionSpeed: Double = 1.0
     public var tabHapticsEnabled: Bool = true
-    public var freezeOnRelease: Bool = true
-    public var freeformScroll: Bool = true
+    public var freezeOnRelease: Bool = false
+    public var freeformScroll: Bool = false
 
     public init(
         schemaVersion: Int = 1,
@@ -118,6 +126,11 @@ public struct SettingsSnapshot: Codable, Sendable, Equatable {
         scrollTriggerMode: ScrollTriggerMode = .seamlessHorizontal,
         scrollSensitivity: Double = 1.0,
         scrollSmoothness: Double = 0.75,
+        scrollDeceleration: Double = 0.965,
+        inertialScrolling: Bool = true,
+        momentumMultiplier: Double = 1.0,
+        kineticScrollingProfile: KineticScrollingProfile = .natural,
+        smoothScrollingEnabled: Bool = true,
         enableTransitions: Bool = true,
         momentumScrolling: Bool = true,
         magneticSnapTransition: MagneticSnapTransitionStyle = .liquidSpring,
@@ -158,8 +171,8 @@ public struct SettingsSnapshot: Codable, Sendable, Equatable {
         tabOpenCloseEffect: TabOpenCloseEffect = .scaleFade,
         tabMotionSpeed: Double = 1.0,
         tabHapticsEnabled: Bool = true,
-        freezeOnRelease: Bool = true,
-        freeformScroll: Bool = true
+        freezeOnRelease: Bool = false,
+        freeformScroll: Bool = false
     ) {
         self.schemaVersion = schemaVersion
         self.lastSavedDate = lastSavedDate
@@ -189,6 +202,11 @@ public struct SettingsSnapshot: Codable, Sendable, Equatable {
         self.scrollTriggerMode = scrollTriggerMode
         self.scrollSensitivity = scrollSensitivity
         self.scrollSmoothness = scrollSmoothness
+        self.scrollDeceleration = scrollDeceleration
+        self.inertialScrolling = inertialScrolling
+        self.momentumMultiplier = momentumMultiplier
+        self.kineticScrollingProfile = kineticScrollingProfile
+        self.smoothScrollingEnabled = smoothScrollingEnabled
         self.enableTransitions = enableTransitions
         self.momentumScrolling = momentumScrolling
         self.magneticSnapTransition = magneticSnapTransition
@@ -264,6 +282,11 @@ public struct SettingsSnapshot: Codable, Sendable, Equatable {
         self.scrollTriggerMode = try c.decodeIfPresent(ScrollTriggerMode.self, forKey: .scrollTriggerMode) ?? .seamlessHorizontal
         self.scrollSensitivity = try c.decodeIfPresent(Double.self, forKey: .scrollSensitivity) ?? 1.0
         self.scrollSmoothness = try c.decodeIfPresent(Double.self, forKey: .scrollSmoothness) ?? 0.75
+        self.scrollDeceleration = try c.decodeIfPresent(Double.self, forKey: .scrollDeceleration) ?? 0.965
+        self.inertialScrolling = try c.decodeIfPresent(Bool.self, forKey: .inertialScrolling) ?? true
+        self.momentumMultiplier = try c.decodeIfPresent(Double.self, forKey: .momentumMultiplier) ?? 1.0
+        self.kineticScrollingProfile = try c.decodeIfPresent(KineticScrollingProfile.self, forKey: .kineticScrollingProfile) ?? .natural
+        self.smoothScrollingEnabled = try c.decodeIfPresent(Bool.self, forKey: .smoothScrollingEnabled) ?? true
         self.enableTransitions = try c.decodeIfPresent(Bool.self, forKey: .enableTransitions) ?? true
         self.momentumScrolling = try c.decodeIfPresent(Bool.self, forKey: .momentumScrolling) ?? true
         self.magneticSnapTransition = try c.decodeIfPresent(MagneticSnapTransitionStyle.self, forKey: .magneticSnapTransition) ?? .liquidSpring
@@ -314,8 +337,8 @@ public struct SettingsSnapshot: Codable, Sendable, Equatable {
         self.tabOpenCloseEffect = try c.decodeIfPresent(TabOpenCloseEffect.self, forKey: .tabOpenCloseEffect) ?? .scaleFade
         self.tabMotionSpeed = try c.decodeIfPresent(Double.self, forKey: .tabMotionSpeed) ?? 1.0
         self.tabHapticsEnabled = try c.decodeIfPresent(Bool.self, forKey: .tabHapticsEnabled) ?? true
-        self.freezeOnRelease = try c.decodeIfPresent(Bool.self, forKey: .freezeOnRelease) ?? true
-        self.freeformScroll = try c.decodeIfPresent(Bool.self, forKey: .freeformScroll) ?? true
+        self.freezeOnRelease = try c.decodeIfPresent(Bool.self, forKey: .freezeOnRelease) ?? false
+        self.freeformScroll = try c.decodeIfPresent(Bool.self, forKey: .freeformScroll) ?? false
     }
 }
 

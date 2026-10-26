@@ -50,7 +50,7 @@ public struct LayoutEngine: Sendable {
         edgeMargins: EdgeMargins = EdgeMargins(top: 0, bottom: 0, left: 0, right: 0),
         defaultColumnWidthRatio: CGFloat = 0.50,
         defaultMinimumColumnWidth: CGFloat = 380.0,
-        offScreenPeekSliverWidth: CGFloat = 12.0,
+        offScreenPeekSliverWidth: CGFloat = 0.0,
         centerMode: CenterMode = .never
     ) {
         self.windowGap = windowGap
@@ -85,13 +85,17 @@ public struct LayoutEngine: Sendable {
     }
     
     /// Computes the maximum allowed viewport offset for the strip, accommodating full column centering for .always and .onOverflow.
+    ///
+    /// A single column is not special-cased: a column wider than the viewport still
+    /// has a valid scroll range (D16). A column that fits returns 0 through the
+    /// existing `max(0, …)` math.
     public func maxScrollOffset(
         columns: [WindowColumn],
         visibleWidth: CGFloat,
         centerMode: CenterMode? = nil,
         gap: CGFloat? = nil
     ) -> CGFloat {
-        guard columns.count > 1 else { return 0 }
+        guard !columns.isEmpty else { return 0 }
         let effectiveGap = gap ?? windowGap
         let totalWidth = self.totalStripWidth(columns: columns, gap: effectiveGap)
         let baseMax = max(0, totalWidth - visibleWidth)
@@ -123,6 +127,82 @@ public struct LayoutEngine: Sendable {
         let totalGaps = CGFloat(columns.count) * effectiveGap
         return sumWidths + totalGaps
     }
+
+    /// Single authority for whether the current workspace geometry can wrap.
+    ///
+    /// Looping is valid only when the layout mode supports it, there are at least
+    /// two columns, and one full cycle (columns + closing gap) covers the viewport.
+    /// `layoutMode` may be omitted when the caller has already checked layout
+    /// support; the geometric conditions are always enforced.
+    public func isLoopEligible(
+        columns: [WindowColumn],
+        visibleWidth: CGFloat,
+        layoutMode: LayoutMode? = nil,
+        gap: CGFloat? = nil
+    ) -> Bool {
+        guard columns.count >= 2 else { return false }
+        if let layoutMode, !layoutMode.supportsLoop { return false }
+        guard visibleWidth.isFinite, visibleWidth > 0 else { return false }
+        let period = cyclicStripPeriod(columns: columns, gap: gap)
+        return period.isFinite && period > 0 && period >= visibleWidth
+    }
+
+    /// The complete scroll geometry for one workspace: the one value set every
+    /// scroll/navigation/snap path must use.
+    public struct ScrollBounds: Equatable, Sendable {
+        public let maxOffset: CGFloat
+        public let usableWidth: CGFloat
+        public let gap: CGFloat
+        public let loopEligible: Bool
+
+        public init(maxOffset: CGFloat, usableWidth: CGFloat, gap: CGFloat, loopEligible: Bool) {
+            self.maxOffset = maxOffset
+            self.usableWidth = usableWidth
+            self.gap = gap
+            self.loopEligible = loopEligible
+        }
+    }
+
+    /// Resolves margin/gap collapse once, then derives the offset limit and loop
+    /// eligibility from that same geometry. Callers must not re-derive any of
+    /// these values (D18).
+    public func scrollBounds(
+        columns: [WindowColumn],
+        visibleFrame: CGRect,
+        edgeMargins: EdgeMargins,
+        totalWindowCount: Int,
+        smartWindowMargins: Bool,
+        disablePaddingOnBuiltinDisplay: Bool,
+        isBuiltinDisplay: Bool,
+        centerMode: CenterMode,
+        windowGap: CGFloat,
+        layoutMode: LayoutMode,
+        loopMode: Bool
+    ) -> ScrollBounds {
+        let collapseMargins = (smartWindowMargins && totalWindowCount <= 1)
+            || (disablePaddingOnBuiltinDisplay && isBuiltinDisplay)
+        let effectiveMargins = collapseMargins ? EdgeMargins.zero : edgeMargins
+        let effectiveGap = (smartWindowMargins && totalWindowCount <= 1) ? 0.0 : windowGap
+        let usableWidth = max(200, visibleFrame.width - effectiveMargins.left - effectiveMargins.right)
+        let maxOffset = maxScrollOffset(
+            columns: columns,
+            visibleWidth: usableWidth,
+            centerMode: centerMode,
+            gap: effectiveGap
+        )
+        let loopEligible = loopMode && isLoopEligible(
+            columns: columns,
+            visibleWidth: usableWidth,
+            layoutMode: layoutMode,
+            gap: effectiveGap
+        )
+        return ScrollBounds(
+            maxOffset: maxOffset,
+            usableWidth: usableWidth,
+            gap: effectiveGap,
+            loopEligible: loopEligible
+        )
+    }
     
     // MARK: - Viewport Calculation
     
@@ -145,7 +225,12 @@ public struct LayoutEngine: Sendable {
         // Loop only applies to strip modes, and only once one full cycle spans the viewport
         // (period >= visibleWidth, i.e. the columns plus the closing gap fill the screen).
         // Narrower strips stay clamped and never wrap.
-        let canLoop = loopMode && layoutMode.supportsLoop && columns.count >= 2 && period > 0 && period >= visibleWidth
+        let canLoop = loopMode && isLoopEligible(
+            columns: columns,
+            visibleWidth: visibleWidth,
+            layoutMode: layoutMode,
+            gap: effectiveGap
+        )
         let maxAllowedOffset = canLoop ? CGFloat.greatestFiniteMagnitude : maxScrollOffset(columns: columns, visibleWidth: visibleWidth, centerMode: effectiveCenterMode, gap: effectiveGap)
         
         guard let focusedIdx = focusedColumnIndex, focusedIdx >= 0, focusedIdx < columns.count else {
@@ -335,7 +420,12 @@ public struct LayoutEngine: Sendable {
         let totalWidth = self.totalStripWidth(columns: columns, gap: effectiveGap)
         let effectiveCenterMode = centerMode ?? self.centerMode
         let period = self.cyclicStripPeriod(columns: columns, gap: effectiveGap)
-        let canLoop = loopMode && layoutMode.supportsLoop && columns.count >= 2 && period > 0 && period >= usableWidth
+        let canLoop = loopMode && isLoopEligible(
+            columns: columns,
+            visibleWidth: usableWidth,
+            layoutMode: layoutMode,
+            gap: effectiveGap
+        )
         
         let idealViewportOffset = computeViewportOffset(
             columns: columns,
@@ -352,7 +442,6 @@ public struct LayoutEngine: Sendable {
         let minVisibleX = visibleFrame.origin.x + margins.left
         let maxVisibleX = minVisibleX + usableWidth
         let baseOriginY = visibleFrame.origin.y + margins.top
-        let screenCenter = minVisibleX + (usableWidth / 2.0)
         
         var activeStripX: CGFloat = 0.0
         for column in columns {
@@ -369,26 +458,42 @@ public struct LayoutEngine: Sendable {
             
             let colScreenX: CGFloat
             if canLoop {
-                let nominalScreenX = minVisibleX + colStripX - viewportOffset
-                let nominalCenter = nominalScreenX + (colWidth / 2.0)
-                let delta = nominalCenter - screenCenter
-                let wrappedDelta = delta - period * (delta / period).rounded()
-                let wrappedCenter = screenCenter + wrappedDelta
-                colScreenX = wrappedCenter - (colWidth / 2.0)
+                // Choose the one copy of this column that belongs to the
+                // ordered cycle intersecting the viewport. Wrapping each
+                // column independently by nearest centre can select different
+                // cycles and make adjacent columns overlap when the period is
+                // only slightly wider than the viewport.
+                var cycleStripX = colStripX
+                    + floor((viewportOffset - colStripX) / period) * period
+                if cycleStripX + colWidth <= viewportOffset {
+                    cycleStripX += period
+                }
+                colScreenX = minVisibleX + cycleStripX - viewportOffset
             } else {
                 colScreenX = minVisibleX + colStripX - viewportOffset
             }
             
-            let sliver = max(1.0, offScreenPeekSliverWidth)
+            let sliver = offScreenPeekSliverWidth
             var finalScreenX = colScreenX
             var isParked = false
             
-            if colScreenX + colWidth <= minVisibleX + sliver {
-                finalScreenX = minVisibleX - colWidth + sliver
-                isParked = true
-            } else if colScreenX >= maxVisibleX - max(35.0, sliver) {
-                finalScreenX = maxVisibleX - sliver
-                isParked = true
+            if sliver > 0 {
+                // Right-park only when the column's left edge is already past the last usable point
+                // inside the viewport (no 35pt anticipation jump — that made the strip look sticky).
+                if colScreenX + colWidth <= minVisibleX + sliver {
+                    finalScreenX = minVisibleX - colWidth + sliver
+                    isParked = true
+                } else if colScreenX >= maxVisibleX - sliver {
+                    finalScreenX = maxVisibleX - sliver
+                    isParked = true
+                }
+            } else {
+                // Continuous magnetic strip: adjacent windows remain strictly together without
+                // artificial edge clamping, overlap, or detaching during scrolling.
+                finalScreenX = colScreenX
+                if colScreenX + colWidth <= minVisibleX || colScreenX >= maxVisibleX {
+                    isParked = true
+                }
             }
             
             if column.presentationMode == .tabbed {
@@ -396,7 +501,7 @@ public struct LayoutEngine: Sendable {
                 let tabContentHeight = max(100, usableHeight - PureStripLayoutEngine.tabBarHeight)
                 for (idx, win) in managedInColumn.enumerated() {
                     let isCurrentTab = (idx == column.activeWindowIndex)
-                    let screenX = isCurrentTab ? round(finalScreenX) : (minVisibleX - colWidth + sliver)
+                    let screenX = isCurrentTab ? round(finalScreenX) : (sliver > 0 ? (minVisibleX - colWidth + sliver) : (minVisibleX - colWidth - 200))
                     let frame = CGRect(
                         x: screenX,
                         y: round(tabContentY),
@@ -541,31 +646,35 @@ public struct LayoutEngine: Sendable {
         columns: [WindowColumn],
         visibleWidth: CGFloat,
         gap: CGFloat? = nil,
-        loopMode: Bool = false
+        loopMode: Bool = false,
+        layoutMode: LayoutMode? = nil
     ) -> Int {
         guard !columns.isEmpty else { return 0 }
         let effectiveGap = gap ?? windowGap
         let offsets = columnStripOffsets(columns: columns, gap: effectiveGap)
         
-        if loopMode && columns.count >= 2 {
+        if loopMode && isLoopEligible(
+            columns: columns,
+            visibleWidth: visibleWidth,
+            layoutMode: layoutMode,
+            gap: effectiveGap
+        ) {
             let period = cyclicStripPeriod(columns: columns, gap: effectiveGap)
-            if period > 0 && period >= visibleWidth {
-                var bestIndex = 0
-                var bestDistance = CGFloat.greatestFiniteMagnitude
-                let viewportCenter = viewportOffset + (visibleWidth / 2.0)
-                
-                for (i, colLeft) in offsets.enumerated() {
-                    let col = columns[i]
-                    let colCenter = colLeft + (col.width / 2.0)
-                    let rawDist = colCenter - viewportCenter
-                    let circDist = abs(rawDist - period * (rawDist / period).rounded())
-                    if circDist < bestDistance {
-                        bestDistance = circDist
-                        bestIndex = i
-                    }
+            var bestIndex = 0
+            var bestDistance = CGFloat.greatestFiniteMagnitude
+            let viewportCenter = viewportOffset + (visibleWidth / 2.0)
+            
+            for (i, colLeft) in offsets.enumerated() {
+                let col = columns[i]
+                let colCenter = colLeft + (col.width / 2.0)
+                let rawDist = colCenter - viewportCenter
+                let circDist = abs(rawDist - period * (rawDist / period).rounded())
+                if circDist < bestDistance {
+                    bestDistance = circDist
+                    bestIndex = i
                 }
-                return bestIndex
             }
+            return bestIndex
         }
         
         var bestIndex = 0
@@ -606,16 +715,41 @@ public struct LayoutEngine: Sendable {
         visibleWidth: CGFloat,
         centerMode: CenterMode? = nil,
         gap: CGFloat? = nil,
-        loopMode: Bool = false
+        loopMode: Bool = false,
+        layoutMode: LayoutMode? = nil
     ) -> SnapTarget {
+        // A single column has no inter-column boundary to snap to. Returning 0
+        // here would erase the scroll range that D16 gives a wide column, so keep
+        // the clamped projection instead: every offset inside one column is
+        // already "on" that column.
         guard columns.count > 1 else {
-            return SnapTarget(targetOffset: 0, focusedColumnIndex: 0)
+            // NaN cannot be clamped meaningfully; treat it as the strip start.
+            // Infinity must clamp like the multi-column path (to `maxAllowed`),
+            // not jump to 0.
+            let projection = projectedOffset.isNaN ? 0 : projectedOffset
+            let effectiveGap = gap ?? self.windowGap
+            let effectiveCenterMode = centerMode ?? self.centerMode
+            let maxAllowed = maxScrollOffset(
+                columns: columns,
+                visibleWidth: visibleWidth,
+                centerMode: effectiveCenterMode,
+                gap: effectiveGap
+            )
+            return SnapTarget(
+                targetOffset: min(max(0, projection), maxAllowed),
+                focusedColumnIndex: 0
+            )
         }
         
         let effectiveGap = gap ?? self.windowGap
         let effectiveCenterMode = centerMode ?? self.centerMode
         let period = cyclicStripPeriod(columns: columns, gap: effectiveGap)
-        let canLoop = loopMode && columns.count >= 2 && period > 0 && period >= visibleWidth
+        let canLoop = loopMode && isLoopEligible(
+            columns: columns,
+            visibleWidth: visibleWidth,
+            layoutMode: layoutMode,
+            gap: effectiveGap
+        )
         
         if canLoop {
             let offsets = columnStripOffsets(columns: columns, gap: effectiveGap)
@@ -951,7 +1085,7 @@ public struct LayoutEngine: Sendable {
         let minVisibleX = visibleFrame.minX + effectiveMargins.left
         let maxVisibleX = minVisibleX + usableWidth
         let offsets = columnStripOffsets(columns: columns, gap: effectiveGap)
-        let sliver = max(1.0, offScreenPeekSliverWidth)
+        let sliver = offScreenPeekSliverWidth
         
         var result: [UUID: ColumnScreenFrame] = [:]
         for (index, column) in columns.enumerated() where index < offsets.count {
@@ -959,12 +1093,19 @@ public struct LayoutEngine: Sendable {
             let rawX = minVisibleX + offsets[index] - viewportOffset
             var screenX = rawX
             var isParked = false
-            if rawX + colWidth <= minVisibleX + sliver {
-                screenX = minVisibleX - colWidth + sliver
-                isParked = true
-            } else if rawX >= maxVisibleX - max(35.0, sliver) {
-                screenX = maxVisibleX - sliver
-                isParked = true
+            if sliver > 0 {
+                if rawX + colWidth <= minVisibleX + sliver {
+                    screenX = minVisibleX - colWidth + sliver
+                    isParked = true
+                } else if rawX >= maxVisibleX - sliver {
+                    screenX = maxVisibleX - sliver
+                    isParked = true
+                }
+            } else {
+                screenX = rawX
+                if rawX + colWidth <= minVisibleX || rawX >= maxVisibleX {
+                    isParked = true
+                }
             }
             let frame = CGRect(
                 x: screenX,
@@ -1292,6 +1433,8 @@ public struct PureStripLayoutEngine {
             let rawScreenX = visibleFrame.minX + outerMargins.left + stripCursorX - viewportOffset
             let sliver: CGFloat = 12.0
             var screenX = rawScreenX
+            // Same tight right-park threshold as the primary engine: only a column whose
+            // left edge is already past the last usable point gets pinned to the sliver.
             if rawScreenX + colWidth <= visibleFrame.minX + sliver {
                 screenX = visibleFrame.minX - colWidth + sliver
             } else if rawScreenX >= visibleFrame.maxX - sliver {

@@ -226,13 +226,18 @@ public final class TabBarOverlayController {
     /// Updates every tab bar belonging to one display. Column frames are supplied
     /// by the layout engine so the bars stay glued to their columns while the
     /// strip scrolls or resizes.
+    ///
+    /// During live scrolling, pass `refreshContent: false`: the tab contents did not
+    /// change, only the column positions did. This skips rebuilding candidate lists
+    /// (which sort every managed window for every column) on every display frame.
     public func updateTabs(
         for columns: [WindowColumn],
         windows: [WindowId: ManagedWindow],
         visibleFrame: CGRect,
         displayId: CGDirectDisplayID,
         primaryScreenHeight: CGFloat,
-        columnFrames: [UUID: ColumnScreenFrame]
+        columnFrames: [UUID: ColumnScreenFrame],
+        refreshContent: Bool = true
     ) {
         var activeColumnIds = Set<UUID>()
         
@@ -252,57 +257,62 @@ public final class TabBarOverlayController {
             activeColumnIds.insert(column.id)
             displayByColumn[column.id] = displayId
             
-            let memberWindows = column.windowIds.compactMap { windows[$0] }
-            let activeWindowId = column.activeWindowId
-            let bundleId = memberWindows.first?.bundleIdentifier ?? ""
-            
-            // Other windows of the same app can be attached with the "+" menu.
-            let candidates = windows.values
-                .filter { candidate in
-                    guard !candidate.isFloating, !candidate.isMinimized, !column.windowIds.contains(candidate.id) else { return false }
-                    if !bundleId.isEmpty { return candidate.bundleIdentifier == bundleId }
-                    return candidate.pid == memberWindows.first?.pid
-                }
-                .sorted { lhs, rhs in
-                    if lhs.title == rhs.title { return lhs.id.rawId < rhs.id.rawId }
-                    return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
-                }
-            
-            let otherCols: [(id: UUID, title: String)] = columns
-                .filter { $0.id != column.id }
-                .compactMap { col in
-                    let win = col.activeWindowId.flatMap { windows[$0] } ?? (col.windowIds.first.flatMap { windows[$0] })
-                    let title = col.customGroupName ?? win?.appName ?? "Column"
-                    return (col.id, title)
-                }
-            
-            let model = getOrCreateModel(
-                for: column.id,
-                windows: memberWindows,
-                activeWindowId: activeWindowId,
-                candidates: candidates,
-                isPinned: column.tabBarPinned,
-                customGroupName: column.customGroupName,
-                customColorHex: column.customColorHex,
-                isCollapsed: column.isCollapsed,
-                lockedWindowIds: column.lockedWindowIds,
-                customTabTitles: column.customTabTitles,
-                otherColumns: otherCols,
-                isCompactMode: SettingsStore.shared.tabBarCompactMode
-            )
-            model.update(
-                windows: memberWindows,
-                activeWindowId: activeWindowId,
-                candidates: candidates,
-                isPinned: column.tabBarPinned,
-                customGroupName: column.customGroupName,
-                customColorHex: column.customColorHex,
-                isCollapsed: column.isCollapsed,
-                lockedWindowIds: column.lockedWindowIds,
-                customTabTitles: column.customTabTitles,
-                otherColumns: otherCols,
-                isCompactMode: SettingsStore.shared.tabBarCompactMode
-            )
+            let model: TabBarViewModel
+            if !refreshContent, let existing = models[column.id] {
+                model = existing
+            } else {
+                let memberWindows = column.windowIds.compactMap { windows[$0] }
+                let activeWindowId = column.activeWindowId
+                let bundleId = memberWindows.first?.bundleIdentifier ?? ""
+
+                // Other windows of the same app can be attached with the "+" menu.
+                let candidates = windows.values
+                    .filter { candidate in
+                        guard !candidate.isFloating, !candidate.isMinimized, !column.windowIds.contains(candidate.id) else { return false }
+                        if !bundleId.isEmpty { return candidate.bundleIdentifier == bundleId }
+                        return candidate.pid == memberWindows.first?.pid
+                    }
+                    .sorted { lhs, rhs in
+                        if lhs.title == rhs.title { return lhs.id.rawId < rhs.id.rawId }
+                        return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+                    }
+
+                let otherCols: [(id: UUID, title: String)] = columns
+                    .filter { $0.id != column.id }
+                    .compactMap { col in
+                        let win = col.activeWindowId.flatMap { windows[$0] } ?? (col.windowIds.first.flatMap { windows[$0] })
+                        let title = col.customGroupName ?? win?.appName ?? "Column"
+                        return (col.id, title)
+                    }
+
+                model = getOrCreateModel(
+                    for: column.id,
+                    windows: memberWindows,
+                    activeWindowId: activeWindowId,
+                    candidates: candidates,
+                    isPinned: column.tabBarPinned,
+                    customGroupName: column.customGroupName,
+                    customColorHex: column.customColorHex,
+                    isCollapsed: column.isCollapsed,
+                    lockedWindowIds: column.lockedWindowIds,
+                    customTabTitles: column.customTabTitles,
+                    otherColumns: otherCols,
+                    isCompactMode: SettingsStore.shared.tabBarCompactMode
+                )
+                model.update(
+                    windows: memberWindows,
+                    activeWindowId: activeWindowId,
+                    candidates: candidates,
+                    isPinned: column.tabBarPinned,
+                    customGroupName: column.customGroupName,
+                    customColorHex: column.customColorHex,
+                    isCollapsed: column.isCollapsed,
+                    lockedWindowIds: column.lockedWindowIds,
+                    customTabTitles: column.customTabTitles,
+                    otherColumns: otherCols,
+                    isCompactMode: SettingsStore.shared.tabBarCompactMode
+                )
+            }
             
             // A returning group cancels its pending exit and animates back in.
             if let pending = pendingRemovals.removeValue(forKey: column.id) {
@@ -320,7 +330,7 @@ public final class TabBarOverlayController {
                 panel.setFrame(tabBarFrame, display: false)
             }
             if !panel.isVisible {
-                panel.orderFront(nil)
+                panel.orderFrontRegardless()
             }
         }
         
@@ -1353,7 +1363,7 @@ public final class GroupingPreviewOverlayController {
         
         if !p.isVisible {
             p.alphaValue = 0
-            p.orderFront(nil)
+            p.orderFrontRegardless()
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.18
                 p.animator().alphaValue = 1.0
@@ -1483,7 +1493,7 @@ public final class DimmingOverlayController {
             p.setFrame(visibleFrame, display: false)
         }
         if !p.isVisible {
-            p.orderFront(nil)
+            p.orderFrontRegardless()
         }
     }
     

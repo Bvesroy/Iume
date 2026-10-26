@@ -1,0 +1,323 @@
+Building for debugging...
+[Planning 181 / 183]
+[Describing: 65 / 389]
+[3 / 37] CIumeEngine
+/Users/bves/projects/Iume/Package.swift: CIumeEngine: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[5 / 37] IumeCore
+error: SwiftCompile normal arm64 failed with a nonzero exit code. Command line:     cd /Users/bves/projects
+    
+/Users/bves/projects/Iume/Sources/IumeCore/UI/MinimapLoopCarouselView.swift:179:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+[0;36m177 |[0;0m     /// strip is at rest. Animating a single trimmed arc keeps it on the compositor instead of
+[0;36m178 |[0;0m     /// re-rendering the whole drum every frame.
+[0;36m179 |[0;0m     @State private var sweepDegrees: Double = 0
+    [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+[0;36m180 |[0;0m 
+[0;36m181 |[0;0m     public init(controller: MinimapHUDController) {
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/MinimapLoopCarouselView.swift:179:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+[0;36m177 |[0;0m     /// strip is at rest. Animating a single trimmed arc keeps it on the compositor instead of
+[0;36m178 |[0;0m     /// re-rendering the whole drum every frame.
+[0;36m179 |[0;0m     @State private var sweepDegrees: Double = 0
+    [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+[0;36m180 |[0;0m 
+[0;36m181 |[0;0m     public init(controller: MinimapHUDController) {
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/Overlays.swift:579:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m577 |[0;0m     public var onDuplicateTab: ((WindowId) -> Void)?
+ [0;36m578 |[0;0m     
+ [0;36m579 |[0;0m     @State private var localOrder: [WindowId] = []
+     [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m580 |[0;0m     @State private var hoveredTabId: WindowId?
+ [0;36m581 |[0;0m     @State private var isAddHovered = false
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/Overlays.swift:580:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m578 |[0;0m     
+ [0;36m579 |[0;0m     @State private var localOrder: [WindowId] = []
+ [0;36m580 |[0;0m     @State private var hoveredTabId: WindowId?
+     [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m581 |[0;0m     @State private var isAddHovered = false
+ [0;36m582 |[0;0m     @State private var isMenuHovered = false
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/Overlays.swift:581:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m579 |[0;0m     @State private var localOrder: [WindowId] = []
+ [0;36m580 |[0;0m     @State private var hoveredTabId: WindowId?
+ [0;36m581 |[0;0m     @State private var isAddHovered = false
+     [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m582 |[0;0m     @State private var isMenuHovered = false
+ [0;36m583 |[0;0m     @State private var draggingId: WindowId?
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/Overlays.swift:582:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m580 |[0;0m     @State private var hoveredTabId: WindowId?
+ [0;36m581 |[0;0m     @State private var isAddHovered = false
+ [0;36m582 |[0;0m     @State private var isMenuHovered = false
+     [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m583 |[0;0m     @State private var draggingId: WindowId?
+ [0;36m584 |[0;0m     @State private var dragStartIndex = 0
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/Overlays.swift:583:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m581 |[0;0m     @State private var isAddHovered = false
+ [0;36m582 |[0;0m     @State private var isMenuHovered = false
+ [0;36m583 |[0;0m     @State private var draggingId: WindowId?
+     [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m584 |[0;0m     @State private var dragStartIndex = 0
+ [0;36m585 |[0;0m     @State private var dragTranslation: CGSize = .zero
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/Overlays.swift:584:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m582 |[0;0m     @State private var isMenuHovered = false
+ [0;36m583 |[0;0m     @State private var draggingId: WindowId?
+ [0;36m584 |[0;0m     @State private var dragStartIndex = 0
+     [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m585 |[0;0m     @State private var dragTranslation: CGSize = .zero
+ [0;36m586 |[0;0m     @State private var isDetachIntent = false
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/Overlays.swift:585:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m583 |[0;0m     @State private var draggingId: WindowId?
+ [0;36m584 |[0;0m     @State private var dragStartIndex = 0
+ [0;36m585 |[0;0m     @State private var dragTranslation: CGSize = .zero
+     [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m586 |[0;0m     @State private var isDetachIntent = false
+ [0;36m587 |[0;0m     @State private var visibility: CGFloat = 0
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/Overlays.swift:586:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m584 |[0;0m     @State private var dragStartIndex = 0
+ [0;36m585 |[0;0m     @State private var dragTranslation: CGSize = .zero
+ [0;36m586 |[0;0m     @State private var isDetachIntent = false
+     [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m587 |[0;0m     @State private var visibility: CGFloat = 0
+ [0;36m588 |[0;0m     @Namespace private var activeTabNamespace
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/Overlays.swift:587:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m585 |[0;0m     @State private var dragTranslation: CGSize = .zero
+ [0;36m586 |[0;0m     @State private var isDetachIntent = false
+ [0;36m587 |[0;0m     @State private var visibility: CGFloat = 0
+     [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m588 |[0;0m     @Namespace private var activeTabNamespace
+ [0;36m589 |[0;0m     
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/Overlays.swift:579:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m577 |[0;0m     public var onDuplicateTab: ((WindowId) -> Void)?
+ [0;36m578 |[0;0m     
+ [0;36m579 |[0;0m     @State private var localOrder: [WindowId] = []
+     [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m580 |[0;0m     @State private var hoveredTabId: WindowId?
+ [0;36m581 |[0;0m     @State private var isAddHovered = false
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/Overlays.swift:580:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m578 |[0;0m     
+ [0;36m579 |[0;0m     @State private var localOrder: [WindowId] = []
+ [0;36m580 |[0;0m     @State private var hoveredTabId: WindowId?
+     [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m581 |[0;0m     @State private var isAddHovered = false
+ [0;36m582 |[0;0m     @State private var isMenuHovered = false
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/Overlays.swift:581:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m579 |[0;0m     @State private var localOrder: [WindowId] = []
+ [0;36m580 |[0;0m     @State private var hoveredTabId: WindowId?
+ [0;36m581 |[0;0m     @State private var isAddHovered = false
+     [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m582 |[0;0m     @State private var isMenuHovered = false
+ [0;36m583 |[0;0m     @State private var draggingId: WindowId?
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/Overlays.swift:582:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m580 |[0;0m     @State private var hoveredTabId: WindowId?
+ [0;36m581 |[0;0m     @State private var isAddHovered = false
+ [0;36m582 |[0;0m     @State private var isMenuHovered = false
+     [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m583 |[0;0m     @State private var draggingId: WindowId?
+ [0;36m584 |[0;0m     @State private var dragStartIndex = 0
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/Overlays.swift:583:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m581 |[0;0m     @State private var isAddHovered = false
+ [0;36m582 |[0;0m     @State private var isMenuHovered = false
+ [0;36m583 |[0;0m     @State private var draggingId: WindowId?
+     [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m584 |[0;0m     @State private var dragStartIndex = 0
+ [0;36m585 |[0;0m     @State private var dragTranslation: CGSize = .zero
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/Overlays.swift:584:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m582 |[0;0m     @State private var isMenuHovered = false
+ [0;36m583 |[0;0m     @State private var draggingId: WindowId?
+ [0;36m584 |[0;0m     @State private var dragStartIndex = 0
+     [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m585 |[0;0m     @State private var dragTranslation: CGSize = .zero
+ [0;36m586 |[0;0m     @State private var isDetachIntent = false
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/Overlays.swift:585:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m583 |[0;0m     @State private var draggingId: WindowId?
+ [0;36m584 |[0;0m     @State private var dragStartIndex = 0
+ [0;36m585 |[0;0m     @State private var dragTranslation: CGSize = .zero
+     [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m586 |[0;0m     @State private var isDetachIntent = false
+ [0;36m587 |[0;0m     @State private var visibility: CGFloat = 0
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/Overlays.swift:586:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m584 |[0;0m     @State private var dragStartIndex = 0
+ [0;36m585 |[0;0m     @State private var dragTranslation: CGSize = .zero
+ [0;36m586 |[0;0m     @State private var isDetachIntent = false
+     [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m587 |[0;0m     @State private var visibility: CGFloat = 0
+ [0;36m588 |[0;0m     @Namespace private var activeTabNamespace
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/Overlays.swift:587:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m585 |[0;0m     @State private var dragTranslation: CGSize = .zero
+ [0;36m586 |[0;0m     @State private var isDetachIntent = false
+ [0;36m587 |[0;0m     @State private var visibility: CGFloat = 0
+     [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m588 |[0;0m     @Namespace private var activeTabNamespace
+ [0;36m589 |[0;0m     
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/StripOverviewView.swift:9:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+  [0;36m7 |[0;0m     @ObservedObject var controller: StripOverviewController
+  [0;36m8 |[0;0m     
+  [0;36m9 |[0;0m     @State private var draggedColumnId: UUID?
+    [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m10 |[0;0m     @State private var dragTranslation: CGFloat = 0
+ [0;36m11 |[0;0m     @State private var hoveredColumnId: UUID?
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/StripOverviewView.swift:10:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+  [0;36m8 |[0;0m     
+  [0;36m9 |[0;0m     @State private var draggedColumnId: UUID?
+ [0;36m10 |[0;0m     @State private var dragTranslation: CGFloat = 0
+    [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m11 |[0;0m     @State private var hoveredColumnId: UUID?
+ [0;36m12 |[0;0m     
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/StripOverviewView.swift:11:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+  [0;36m9 |[0;0m     @State private var draggedColumnId: UUID?
+ [0;36m10 |[0;0m     @State private var dragTranslation: CGFloat = 0
+ [0;36m11 |[0;0m     @State private var hoveredColumnId: UUID?
+    [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m12 |[0;0m     
+ [0;36m13 |[0;0m     private let cardWidth: CGFloat = 290
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/StripOverviewView.swift:9:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+  [0;36m7 |[0;0m     @ObservedObject var controller: StripOverviewController
+  [0;36m8 |[0;0m     
+  [0;36m9 |[0;0m     @State private var draggedColumnId: UUID?
+    [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m10 |[0;0m     @State private var dragTranslation: CGFloat = 0
+ [0;36m11 |[0;0m     @State private var hoveredColumnId: UUID?
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/StripOverviewView.swift:10:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+  [0;36m8 |[0;0m     
+  [0;36m9 |[0;0m     @State private var draggedColumnId: UUID?
+ [0;36m10 |[0;0m     @State private var dragTranslation: CGFloat = 0
+    [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m11 |[0;0m     @State private var hoveredColumnId: UUID?
+ [0;36m12 |[0;0m     
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/bves/projects/Iume/Sources/IumeCore/UI/StripOverviewView.swift:11:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+  [0;36m9 |[0;0m     @State private var draggedColumnId: UUID?
+ [0;36m10 |[0;0m     @State private var dragTranslation: CGFloat = 0
+ [0;36m11 |[0;0m     @State private var hoveredColumnId: UUID?
+    [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m12 |[0;0m     
+ [0;36m13 |[0;0m     private let cardWidth: CGFloat = 290
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+Failed frontend command:
+/Library/Developer/CommandLineTools/usr/bin/swift-frontend -frontend -emit-module -experimental-skip-non-inlinable-function-bodies-without-types /Users/bves/projects/Iume/Sources/IumeCore/Controller/FocusManager.swift /Users/bves/projects/Iume/Sources/IumeCore/Controller/InteractionManager.swift /Users/bves/projects/Iume/Sources/IumeCore/Controller/ScrollController.swift /Users/bves/projects/Iume/Sources/IumeCore/Controller/WindowController.swift /Users/bves/projects/Iume/Sources/IumeCore/Diagnostics/Diagnostics.swift /Users/bves/projects/Iume/Sources/IumeCore/Diagnostics/MacSetupChecker.swift /Users/bves/projects/Iume/Sources/IumeCore/Discovery/ApplicationDiscovery.swift /Users/bves/projects/Iume/Sources/IumeCore/Discovery/WindowDiscovery.swift /Users/bves/projects/Iume/Sources/IumeCore/Display/DisplayManager.swift /Users/bves/projects/Iume/Sources/IumeCore/Engine/RustEngine.swift /Users/bves/projects/Iume/Sources/IumeCore/Interaction/MouseStateKeeper.swift /Users/bves/projects/Iume/Sources/IumeCore/LayoutEngine/BoxTilingEngine.swift /Users/bves/projects/Iume/Sources/IumeCore/LayoutEngine/LayoutEngine.swift /Users/bves/projects/Iume/Sources/IumeCore/LayoutEngine/MagneticWindowEngine.swift /Users/bves/projects/Iume/Sources/IumeCore/Models/CoreModels.swift /Users/bves/projects/Iume/Sources/IumeCore/Models/ManagedWindow.swift /Users/bves/projects/Iume/Sources/IumeCore/Observer/WindowObserver.swift /Users/bves/projects/Iume/Sources/IumeCore/Permissions/PermissionManager.swift /Users/bves/projects/Iume/Sources/IumeCore/Persistence/LayoutPersistenceManager.swift /Users/bves/projects/Iume/Sources/IumeCore/Persistence/SettingsMemoryManager.swift /Users/bves/projects/Iume/Sources/IumeCore/Physics/SpringState.swift /Users/bves/projects/Iume/Sources/IumeCore/Registry/WindowRegistry.swift /Users/bves/projects/Iume/Sources/IumeCore/Settings/SettingsStore.swift /Users/bves/projects/Iume/Sources/IumeCore/Shortcuts/KeyTranslator.swift /Users/bves/projects/Iume/Sources/IumeCore/Shortcuts/ShortcutBinding.swift /Users/bves/projects/Iume/Sources/IumeCore/Shortcuts/ShortcutManager.swift /Users/bves/projects/Iume/Sources/IumeCore/Space/SpaceManager.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/BoxPreviewHUDController.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/DialGeometry.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/FocusBorderOverlay.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/HudSoundEngine.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/LaunchHUDController.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/MacSetupView.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/MinimapEdgeRailView.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/MinimapHUDChrome.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/MinimapHUDController.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/MinimapHUDView.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/MinimapHorizonEllipseView.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/MinimapLinearView.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/MinimapLoopCarouselView.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/MinimapSpectrumView.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/MinimapTapeView.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/MinimapTimelineView.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/Overlays.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/RadialAndGridOverlays.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/SettingsDesignSystem.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/SettingsView.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/ShortcutCheatsheetController.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/StatusBarController.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/StripOverviewController.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/StripOverviewView.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/TabEffectsSettingsCard.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/TabMotion.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/WelcomeWindowController.swift /Users/bves/projects/Iume/Sources/IumeCore/UI/WindowPreviewCapturer.swift /Users/bves/projects/Iume/Sources/IumeCore/Workspace/WorkspaceManager.swift -target arm64-apple-macos14.0 -disable-cross-import-overlay-search -load-resolved-plugin /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/libObservationMacros.dylib\#\#ObservationMacros -load-resolved-plugin /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/libSwiftMacros.dylib\#\#SwiftMacros -disable-implicit-swift-modules -Xcc -fno-implicit-modules -Xcc -fno-implicit-module-maps -explicit-swift-module-map-file /Users/bves/projects/Iume/.build/out/Intermediates.noindex/Iume.build/Debug/IumeCore-t.build/Objects-normal/arm64/IumeCore-dependencies-1.json -Xllvm -aarch64-use-tbi -enable-objc-interop -stack-check -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX27.0.sdk -I /Users/bves/projects/Iume/.build/out/Products/Debug -Isystem /Library/Developer/CommandLineTools/Developer/usr/lib -F /Users/bves/projects/Iume/.build/out/Products/Debug/PackageFrameworks -F /Users/bves/projects/Iume/.build/out/Products/Debug -F /Library/Developer/CommandLineTools/Library/Developer/Frameworks -F /Library/Developer/CommandLineTools/Developer/Library/Frameworks -module-cache-path /Users/bves/projects/Iume/.build/out/Intermediates.noindex/SwiftExplicitPrecompiledModules -color-diagnostics -Xcc -fcolor-diagnostics -enable-testing -g -debug-info-format\=dwarf -dwarf-version\=4 -swift-version 6 -Onone -D SWIFT_PACKAGE -D DEBUG -D SWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -D Xcode -serialize-debugging-options -enable-experimental-feature DebugDescriptionMacro -empty-abi-descriptor -validate-clang-modules-once -clang-build-session-file /Users/bves/projects/Iume/.build/out/ModuleCache.noindex/Session.modulevalidation -Xcc -working-directory -Xcc /Users/bves/projects -enable-anonymous-context-mangled-names -file-compilation-dir /Users/bves/projects -Xcc -fmodule-map-file\=/Users/bves/projects/Iume/.build/out/Intermediates.noindex/GeneratedModuleMaps/CIumeEngine.modulemap -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -Xcc -ivfsstatcache -Xcc /Users/bves/projects/Iume/.build/out/SDKStatCaches.noindex/macosx27.0-26A425-a0facfad118c1a7a18f0aad9463f6549ffd68ff603bdaacc80b00cb8898de72d.sdkstatcache -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -Xcc -I/Users/bves/projects/Iume/Sources/CIumeEngine/include -Xcc -I/Users/bves/projects/Iume/.build/out/Products/Debug/include -Xcc -I/Users/bves/projects/Iume/.build/out/Intermediates.noindex/Iume.build/Debug/IumeCore-t.build/DerivedSources-normal/arm64 -Xcc -I/Users/bves/projects/Iume/.build/out/Intermediates.noindex/Iume.build/Debug/IumeCore-t.build/DerivedSources/arm64 -Xcc -I/Users/bves/projects/Iume/.build/out/Intermediates.noindex/Iume.build/Debug/IumeCore-t.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -no-auto-bridging-header-chaining -module-name IumeCore -package-name iume -const-gather-protocols-file /Users/bves/projects/Iume/.build/out/Intermediates.noindex/Iume.build/Debug/IumeCore-t.build/Objects-normal/arm64/IumeCore_const_extract_protocols.json -disable-clang-spi -clang-target arm64-apple-macos27.0 -target-sdk-version 27.0 -target-sdk-name macosx27.0 -in-process-plugin-server-path /Library/Developer/CommandLineTools/usr/lib/swift/host/libSwiftInProcPluginServer.dylib -emit-module-doc-path /Users/bves/projects/Iume/.build/out/Intermediates.noindex/Iume.build/Debug/IumeCore-t.build/Objects-normal/arm64/IumeCore.swiftdoc -emit-module-source-info-path /Users/bves/projects/Iume/.build/out/Intermediates.noindex/Iume.build/Debug/IumeCore-t.build/Objects-normal/arm64/IumeCore.swiftsourceinfo -emit-objc-header-path /Users/bves/projects/Iume/.build/out/Intermediates.noindex/Iume.build/Debug/IumeCore-t.build/Objects-normal/arm64/IumeCore-Swift.h -serialize-diagnostics-path /Users/bves/projects/Iume/.build/out/Intermediates.noindex/Iume.build/Debug/IumeCore-t.build/Objects-normal/arm64/IumeCore-primary-emit-module.dia -emit-dependencies-path /Users/bves/projects/Iume/.build/out/Intermediates.noindex/Iume.build/Debug/IumeCore-t.build/Objects-normal/arm64/IumeCore-primary-emit-module.d -parse-as-library -o /Users/bves/projects/Iume/.build/out/Intermediates.noindex/Iume.build/Debug/IumeCore-t.build/Objects-normal/arm64/IumeCore.swiftmodule -emit-abi-descriptor-path /Users/bves/projects/Iume/.build/out/Intermediates.noindex/Iume.build/Debug/IumeCore-t.build/Objects-normal/arm64/IumeCore.abi.json
+error: Build failed
+error: fatalError

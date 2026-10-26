@@ -1,0 +1,72 @@
+Phase 2 physics gate: deterministic + adversarial stress suites
+captured: 2026-10-26 11:49:03 
+snapshot: /private/var/folders/_5/qk9tkd653n9dnvt9mbvf3r500000gn/T/opencode/phase2-final3
+hash-stable: yes (immutable snapshot; hashes below are the compiled bytes)
+note: the default main.swift (bac113…) does not call runAdversarialStressTests().
+This run injects the call into a copy of that exact main.swift and executes both
+suites against the identical controller hash.
+source hashes:
+0296dd7a887a256e5e4a51b2cf604ee1c19d7246  Sources/IumeCore/Controller/ScrollController.swift
+d0015ea177532a6f64b1143c811281d88c83912b  Sources/IumeCore/Physics/SpringState.swift
+bac113797632165c5d446de74377d7ed374d5a9e  scripts/audit/harness/main.swift
+4452221dfeee411faf8cdf8229895826d2412bc6  scripts/audit/harness/AdversarialStressTests.swift
+697604087d2b9ad83f2436a9886e565b1956561d  scripts/audit/harness/Stubs.swift
+compile: /usr/bin/swiftc -swift-version 6 -O -target arm64-apple-macos14.0 exit 0
+run exit: 0
+----------------------------------------------------------------------
+== Spring solver ==
+== ScrollController ==
+== Direct-touch resampling (D04) ==
+BENCH direct_bursty hz= 60 frozen=0/59 p50=9.60 p95=9.60 max=9.60 total=576.00 latency_ms=8.33 peak_pending=9.60
+BENCH direct_bursty hz= 80 frozen=0/59 p50=9.60 p95=9.60 max=9.60 total=576.00 latency_ms=6.25 peak_pending=9.60
+BENCH direct_bursty hz=120 frozen=0/59 p50=9.60 p95=9.60 max=9.60 total=576.00 latency_ms=4.17 peak_pending=9.60
+BENCH direct_bursty hz=240 frozen=0/59 p50=9.60 p95=9.60 max=9.60 total=576.00 latency_ms=2.08 peak_pending=9.60
+BENCH direct_60hz_input hz= 60 frozen=0/29 p50=19.20 p95=19.20 max=19.20 total=576.00 latency_ms=8.47 peak_pending=9.60
+BENCH direct_60hz_input hz= 80 frozen=0/39 p50=9.60 p95=19.20 max=19.20 total=576.00 latency_ms=6.36 peak_pending=9.60
+BENCH direct_60hz_input hz=120 frozen=0/59 p50=9.60 p95=9.60 max=9.60 total=576.00 latency_ms=4.17 peak_pending=9.60
+BENCH direct_60hz_input hz=240 frozen=2/119 p50=4.80 p95=4.80 max=9.60 total=576.00 latency_ms=6.01 peak_pending=14.40
+BENCH input_gap max_catchup=9.60 total=768.00
+BENCH release_seam step=360.00 total=360.00
+BENCH single_event_360pt max_step=160.00 total=360.00
+== Gesture ownership (D06) ==
+== D01 geometry shrink / completion clamps ==
+== D02 settle termination ==
+== D09 deferred-callback safety ==
+== Legacy contract compatibility ==
+
+==========================================
+=== STARTING ADVERSARIAL STRESS SUITE ===
+==========================================
+
+[Test 1] Fuzzing Displacement Ledger Invariant (10,000 steps)...
+  Displacement Ledger: 10,000 steps completed.
+  Max invariant discrepancy: 6.257323548197746e-10
+  Final: applied=90311.16204157578, input=90311.16204157517, pending=0.0, diff=6.111804395914078e-10
+
+[Test 2] Rapid Direction Reversals Stress...
+  Rapid direction reversals verified.
+
+[Test 3] Duplicate Lift / Phase 4 Events...
+  Duplicate lift handling verified.
+
+[Test 4] Cancelation (cancelAnimation) Edge Cases...
+  Cancelation edge cases verified.
+
+[Test 5] Gesture Interruption by Keyboard Retargeting & Finger Lift...
+  Checking behavior when phase 4 arrives during active spring...
+  After phase 4 lift during spring: isSpringAnimating=true, isActivelyScrolling=false, phase=true
+  Position after 1.5s: 2500.0 (Target was 2500)
+  [OK] Spring completed to 2500.
+
+[Test 6] Epoch Timeout & Lost-Lift Recovery...
+  Epoch timeout and lost-lift recovery verified.
+
+[Test 7] Sub-epsilon Delta Accumulation...
+  Sub-epsilon accumulation verified.
+
+==========================================
+=== ADVERSARIAL STRESS SUITE COMPLETE ===
+==========================================
+
+
+PASS: 350 checks

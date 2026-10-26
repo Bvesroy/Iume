@@ -1,8 +1,10 @@
 import Foundation
+import os
 
 /// Structured diagnostic logging and runtime performance metrics for Iume.
 public final class Diagnostics: @unchecked Sendable {
     public static let shared = Diagnostics()
+    public static let subsystem = "com.iume.Iume"
     
     public struct LogEntry: Identifiable, Sendable {
         public let id = UUID()
@@ -37,6 +39,20 @@ public final class Diagnostics: @unchecked Sendable {
         logs.append(entry)
         if logs.count > maxLogs {
             logs.removeFirst(logs.count - maxLogs)
+        }
+        
+        // Forward to unified system logging (OSLog)
+        let logSubsystem = Self.subsystem
+        let osLog = os.Logger(subsystem: logSubsystem, category: category)
+        switch level.uppercased() {
+        case "ERROR", "CRITICAL", "FATAL":
+            osLog.error("\(message, privacy: .public)")
+        case "WARN", "WARNING":
+            osLog.warning("\(message, privacy: .public)")
+        case "DEBUG", "TRACE":
+            osLog.debug("\(message, privacy: .public)")
+        default:
+            osLog.info("\(message, privacy: .public)")
         }
     }
     

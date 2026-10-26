@@ -1,8 +1,9 @@
 //! Frame-rate independent spring physics.
 //!
-//! Port of `SpringState` from `ScrollController.swift`. The Swift solver is
-//! already analytically stable; this port exists so the per-frame math leaves
-//! the main actor and so the whole step is branch-free and `no_std`-friendly.
+//! Exact closed-form port of `SpringState` from
+//! `Sources/IumeCore/Physics/SpringState.swift`. Both implementations solve the
+//! same damped harmonic oscillator analytically, so the Rust FFI path and the
+//! live Swift path produce identical motion at any display cadence.
 
 /// Harmonic spring state. Identical semantics to Swift `SpringState`.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -32,6 +33,9 @@ impl Default for SpringState {
 impl SpringState {
     pub const REST_POSITION_EPSILON: f64 = 0.40;
     pub const REST_VELOCITY_EPSILON: f64 = 3.5;
+    /// Longest integration step. A stalled display tick is truncated to this so the
+    /// viewport never teleports; it still covers a 30 Hz display.
+    pub const MAX_FRAME_DELTA: f64 = 1.0 / 30.0;
 
     #[inline]
     pub fn new(position: f64, velocity: f64, target: f64) -> Self {
@@ -45,24 +49,81 @@ impl SpringState {
 
     #[inline]
     pub fn is_at_rest(&self) -> bool {
+        if !self.position.is_finite() || !self.velocity.is_finite() || !self.target.is_finite() {
+            // A poisoned state can never converge; callers use this to terminate.
+            return true;
+        }
         (self.target - self.position).abs() < Self::REST_POSITION_EPSILON
             && self.velocity.abs() < Self::REST_VELOCITY_EPSILON
     }
 
-    /// Advance the spring by `dt` seconds. Bit-for-bit the Swift solver.
+    /// Advance the exact damped-oscillator solution by `dt` seconds.
+    ///
+    /// Non-finite state is repaired, `dt <= 0` is a no-op, and `dt` above
+    /// [`Self::MAX_FRAME_DELTA`] is clamped.
     #[inline]
     pub fn step(&mut self, dt: f64) {
-        let clamped_dt = dt.clamp(0.001, 0.033);
+        if !self.position.is_finite() || !self.velocity.is_finite() || !self.target.is_finite() {
+            self.position = if self.target.is_finite() { self.target } else { 0.0 };
+            self.velocity = 0.0;
+            return;
+        }
+        if !dt.is_finite() || dt <= 0.0 {
+            return;
+        }
+        let h = dt.min(Self::MAX_FRAME_DELTA);
+        if h <= 0.0 {
+            return;
+        }
+
         let omega = (2.0 * std::f64::consts::PI) / self.response.max(0.05);
-        let f = 1.0 + 2.0 * clamped_dt * self.damping_ratio * omega;
-        let oo = omega * omega;
-        let hoo = clamped_dt * oo;
-        let hhoo = clamped_dt * hoo;
-        let det_inv = 1.0 / (f + hhoo);
-        let det_x = f * self.position + clamped_dt * self.velocity + hhoo * self.target;
-        let det_v = self.velocity + hoo * (self.target - self.position);
-        self.position = det_x * det_inv;
-        self.velocity = det_v * det_inv;
+        let zeta = if self.damping_ratio.is_finite() {
+            self.damping_ratio.clamp(0.0, 10.0)
+        } else {
+            1.0
+        };
+        let d0 = self.position - self.target;
+        let v0 = self.velocity;
+
+        let (d1, v1) = if zeta < 1.0 - 1e-4 {
+            // Underdamped: d(t) = e^(-ζωt)[d₀ cos(ω_d t) + ((v₀+ζωd₀)/ω_d) sin(ω_d t)]
+            let omega_d = omega * (1.0 - zeta * zeta).sqrt();
+            let decay = (-zeta * omega * h).exp();
+            let angle = omega_d * h;
+            let sin_angle = angle.sin();
+            let cos_angle = angle.cos();
+            let b = (v0 + zeta * omega * d0) / omega_d;
+            (
+                decay * (d0 * cos_angle + b * sin_angle),
+                decay * (v0 * cos_angle - ((omega * omega * d0 + zeta * omega * v0) / omega_d) * sin_angle),
+            )
+        } else if zeta <= 1.0 + 1e-4 {
+            // Critically damped: d(t) = (d₀ + (v₀ + ωd₀)t)e^(-ωt)
+            let decay = (-omega * h).exp();
+            let b = v0 + omega * d0;
+            ((d0 + b * h) * decay, (v0 - omega * b * h) * decay)
+        } else {
+            // Overdamped: two real exponentials.
+            let root = (zeta * zeta - 1.0).sqrt();
+            let r1 = -omega * (zeta - root);
+            let r2 = -omega * (zeta + root);
+            let denominator = r1 - r2;
+            let c1 = (v0 - r2 * d0) / denominator;
+            let c2 = (r1 * d0 - v0) / denominator;
+            let e1 = (r1 * h).exp();
+            let e2 = (r2 * h).exp();
+            (c1 * e1 + c2 * e2, c1 * r1 * e1 + c2 * r2 * e2)
+        };
+
+        self.position = self.target + d1;
+        self.velocity = v1;
+
+        if !self.position.is_finite() || !self.velocity.is_finite() {
+            self.position = self.target;
+            self.velocity = 0.0;
+            return;
+        }
+
         if self.is_at_rest() {
             self.position = self.target;
             self.velocity = 0.0;
@@ -72,7 +133,9 @@ impl SpringState {
     /// Retarget without losing momentum (used when a new focus target arrives mid-flight).
     #[inline]
     pub fn retarget(&mut self, target: f64) {
-        self.target = target;
+        if target.is_finite() {
+            self.target = target;
+        }
     }
 
     /// Advance until rest or `max_steps`, returning the number of steps taken.
@@ -151,6 +214,16 @@ pub fn rubber_band(delta: f64, overshoot: f64, limit: f64) -> f64 {
 mod tests {
     use super::*;
 
+    fn position_after(target: f64, seconds: f64, hz: f64) -> f64 {
+        let mut spring = SpringState::new(0.0, 0.0, target);
+        let dt = 1.0 / hz;
+        let steps = (seconds * hz).round() as usize;
+        for _ in 0..steps {
+            spring.step(dt);
+        }
+        spring.position
+    }
+
     #[test]
     fn converges_to_target() {
         let mut spring = SpringState::new(0.0, 0.0, 500.0);
@@ -191,6 +264,98 @@ mod tests {
         spring.step(10.0);
         assert!(spring.position.is_finite());
         assert!(spring.position <= 100.0 + 1.0);
+    }
+
+    #[test]
+    fn frame_rate_independent_position() {
+        // The same target must reach the same place at the same wall-clock time,
+        // regardless of how many display ticks happened in between.
+        let samples: Vec<f64> = [60.0, 80.0, 120.0, 240.0]
+            .iter()
+            .map(|hz| position_after(500.0, 0.10, *hz))
+            .collect();
+        let min = samples.iter().cloned().fold(f64::INFINITY, f64::min);
+        let max = samples.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        assert!(
+            max - min < 0.01,
+            "refresh-rate dependent: {samples:?} (spread {})",
+            max - min
+        );
+    }
+
+    #[test]
+    fn retarget_preserves_position_and_velocity() {
+        let mut spring = SpringState::new(0.0, 0.0, 500.0);
+        for _ in 0..6 {
+            spring.step(1.0 / 120.0);
+        }
+        let position = spring.position;
+        let velocity = spring.velocity;
+        assert!(velocity > 0.0);
+
+        spring.retarget(-250.0);
+
+        assert_eq!(spring.position, position);
+        assert_eq!(spring.velocity, velocity);
+        assert_eq!(spring.target, -250.0);
+    }
+
+    #[test]
+    fn reversed_retarget_has_no_discontinuity() {
+        let mut spring = SpringState::new(0.0, 0.0, 500.0);
+        for _ in 0..10 {
+            spring.step(1.0 / 120.0);
+        }
+        let before = spring.position;
+        spring.retarget(-250.0);
+        spring.step(1.0 / 120.0);
+        let displacement = (spring.position - before).abs();
+        assert!(
+            displacement < 10.0,
+            "reversal jumped from {before} to {} in one frame",
+            spring.position
+        );
+    }
+
+    #[test]
+    fn critically_damped_never_overshoots() {
+        let mut spring = SpringState::new(0.0, 0.0, 100.0);
+        spring.damping_ratio = 1.0;
+        let dt = 1.0 / 120.0;
+        let mut previous = spring.position;
+        for _ in 0..240 {
+            spring.step(dt);
+            assert!(
+                spring.position <= 100.0 + 1e-9,
+                "critical damping overshot to {}",
+                spring.position
+            );
+            assert!(
+                spring.position >= previous - 1e-9,
+                "critical damping reversed direction"
+            );
+            previous = spring.position;
+        }
+        assert!(spring.is_at_rest());
+    }
+
+    #[test]
+    fn non_positive_dt_is_noop() {
+        let mut spring = SpringState::new(10.0, 2.0, 100.0);
+        spring.step(0.0);
+        spring.step(-1.0);
+        spring.step(f64::NAN);
+        assert_eq!(spring.position, 10.0);
+        assert_eq!(spring.velocity, 2.0);
+    }
+
+    #[test]
+    fn non_finite_state_is_repaired() {
+        let mut spring = SpringState::new(f64::NAN, f64::INFINITY, 42.0);
+        spring.step(1.0 / 120.0);
+        assert_eq!(spring.position, 42.0);
+        assert_eq!(spring.velocity, 0.0);
+        assert!(spring.is_at_rest());
     }
 
     #[test]

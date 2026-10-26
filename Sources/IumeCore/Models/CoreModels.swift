@@ -726,6 +726,45 @@ public enum ScrollTriggerMode: String, CaseIterable, Codable, Sendable {
     }
 }
 
+// [LOCKED SECTION: PERFECT_SCROLLING_PHYSICS_ENGINE:KineticScrollingProfile]
+// Description: KineticScrollingProfile enumeration defining the 4 physics deceleration curves.
+/// Physics simulation profile governing kinetic, inertial, and momentum deceleration curves.
+public enum KineticScrollingProfile: String, CaseIterable, Codable, Sendable, Identifiable {
+    /// Classic exponential velocity decay matching standard macOS trackpad deceleration.
+    case natural = "natural"
+    /// Aerodynamic fluid resistance: brakes fast at high velocity, coasts softly at low velocity.
+    case viscous = "viscous"
+    /// Low friction momentum conservation for extended sweeps across wide multi-window strips.
+    case highInertia = "highInertia"
+    /// Linear plus exponential arrest for immediate, crisp stopping with zero drift.
+    case snappy = "snappy"
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .natural: return "Natural (macOS)"
+        case .viscous: return "Viscous Fluid"
+        case .highInertia: return "High Inertia (Glide)"
+        case .snappy: return "Snappy Brake"
+        }
+    }
+
+    public var description: String {
+        switch self {
+        case .natural:
+            return "Classic exponential decay with uniform deceleration rate."
+        case .viscous:
+            return "Quadratic aerodynamic resistance that arrests fast flicks while keeping low speeds smooth."
+        case .highInertia:
+            return "Extended momentum conservation for effortless navigation across many monitors and windows."
+        case .snappy:
+            return "Crisp linear braking for rapid stopping without lingering drift."
+        }
+    }
+}
+// [END LOCKED SECTION: PERFECT_SCROLLING_PHYSICS_ENGINE:KineticScrollingProfile]
+
 /// Visual treatment used when the active tab changes inside a tab group.
 public enum TabSwitchEffect: String, CaseIterable, Codable, Sendable, Identifiable {
     /// The highlight glides between tabs on a spring.

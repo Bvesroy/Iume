@@ -70,6 +70,11 @@ graph TD
 12. **`SettingsStore` & `SettingsUI`**: Native SwiftUI configuration interface backed by `UserDefaults`.
 13. **`Diagnostics`**: Local, privacy-first structured logging and performance metrics.
 
+> **Engine split (2026-10):** `MagneticWindowEngine` can delegate magnetic snap
+> evaluation, chained neighbour frames and seam-ratio snapping to `RustEngine`.
+> `LayoutEngine`, the viewport/snap math and `ScrollController`'s spring stay pure
+> Swift; the Rust spring is not on the live scroll path.
+
 ---
 
 ## 3. Physical Window Positioning Model
@@ -130,8 +135,8 @@ On macOS, trackpad gestures arrive through CoreGraphics as continuous `scrollWhe
    $$\text{TargetProjection} = \text{CurrentOffset} + v_{\text{rolling}} \cdot 0.18$$
    `LayoutEngine.findClosestColumnIndex` projects the ideal stopping column, triggers a spring transition to that column, and synchronously sets keyboard focus on the newly centered window.
 
-5. **Zero-Blocking 120Hz ProMotion Engine & Asynchronous Window Writers**:
-   In conventional window managers, moving windows during scroll invokes synchronous Accessibility APIs directly on the main thread. When multiple apps are on screen, each Mach IPC roundtrip can block the runloop for 10–100ms, starving the 8.33ms (120Hz) frame budget.
+5. **Display-Linked Motion Engine & Asynchronous Window Writers**:
+   In conventional window managers, moving windows during scroll invokes synchronous Accessibility APIs directly on the main thread. When multiple apps are on screen, each Mach IPC roundtrip can block the runloop for 10–100ms, starving the frame budget (8.33ms at 120Hz, 4.17ms at 240Hz).
    Iume routes all window position writes during motion (`isMoving == true`) through dedicated per-PID background queues (`com.iume.ax.<pid>`):
    - **Latest-Wins Coalescing**: Intermediate coordinates are atomically overwritten if an application's queue is busy, dropping stale positions and applying only the most recent visual target.
    - **40ms Mach Messaging Timeout**: Responsive timeouts prevent unresponsive or hung applications from degrading strip scroll performance.
@@ -140,10 +145,10 @@ On macOS, trackpad gestures arrive through CoreGraphics as continuous `scrollWhe
 
 6. **Continuous Exponential Smoothing & Jitter Elimination**:
    Trackpad touch sensors poll asynchronously at ~90–125Hz while macOS displays refresh at 60Hz or 120Hz. Raw delta dumping creates beat-frequency interference, resulting in alternating 0-delta (frozen) and double-delta (jumping) frames.
-   Iume applies a frame-rate independent exponential smoothing filter on `CADisplayLink` hardware ticks:
+   Iume applies a frame-rate independent exponential smoothing filter on `CADisplayLink` hardware ticks for wheel and non-touch input:
    $$\text{factor} = 1.0 - \exp(-\lambda \cdot \Delta t) \quad \text{where} \quad \lambda = \max(20.0, 30.0 + (1.0 - \text{smoothness}) \cdot 70.0)$$
    $$\text{CurrentOffset}_{t} = \text{CurrentOffset}_{t-1} + (\text{SmoothTargetOffset} - \text{CurrentOffset}_{t-1}) \cdot \text{factor}$$
-   This ensures buttery 120 FPS continuous motion across every display tick, even on frames where no trackpad hardware packet arrived.
+   This keeps motion continuous across every display tick, even on frames where no trackpad hardware packet arrived. Two-finger direct touch bypasses this filter: it advances the authoritative target at event time and drains a bounded reservoir at the measured input rate, so the strip stays low-latency and the raw input integral is preserved.
 
 7. **$C^1$ Velocity Continuity & Seamless Momentum Snap**:
    When the user's fingers lift from the trackpad or momentum ends:
@@ -195,4 +200,4 @@ When `appsEdgeTogether` is enabled:
   - Neighbor repositioning uses `controller.setPositionAsync` and `controller.setFrameAsync` on dedicated per-PID serial queues with latest-wins atomic drain loops.
   - Programmatic moves record expected frames in `WindowObserver` ($0.65\,\text{s}$ duration) to suppress echo loops.
   - Active drag lockout (`activelyDraggingWindowId`) drops secondary notifications at the gate.
-  - Global mouse-up event monitoring triggers a silky $120\,\text{Hz}$ harmonic spring settle pass on finger lift, guaranteeing zero visual flicker.
+  - Global mouse-up event monitoring triggers a display-linked closed-form spring settle on finger lift, avoiding a visual hitch.

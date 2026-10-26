@@ -380,7 +380,30 @@ struct LayoutEngineTests {
         
         #expect(comp.targetFrames[win1]!.origin.x == 0)
         #expect(comp.targetFrames[win2]!.origin.x == 510)
-        #expect(comp.parkedWindowIds.contains(win3))
+        // 970 = 510+450+10: left edge only 30pt inside the right edge, but still
+        // intersects the viewport. The 35pt anticipation parking was removed — a
+        // column now parks only once its left edge reaches maxVisibleX - sliver
+        // (988), so win3 stays at its true strip position and is not parked here.
+        #expect(comp.targetFrames[win3]!.origin.x == 970)
+        #expect(!comp.parkedWindowIds.contains(win3))
+        // Fully off-screen right (viewport pinned left, strip extends past edge): a
+        // column with left edge >= maxVisibleX - sliver is pinned to the 12pt sliver.
+        let fullyOffCols = [
+            WindowColumn(windowIds: [win1], width: 700),
+            WindowColumn(windowIds: [win2], width: 700),
+            WindowColumn(windowIds: [win3], width: 700)
+        ]
+        let off = engine.computeLayout(
+            columns: fullyOffCols,
+            windows: windows,
+            focusedColumnIndex: 0,
+            visibleFrame: CGRect(x: 0, y: 0, width: 1000, height: 800),
+            viewportOffset: 0,
+            layoutMode: .scrollStrip
+        )
+        // Offsets: 0, 710, 1420 — third column at 1420 is well past maxVisibleX.
+        #expect(off.parkedWindowIds.contains(win3))
+        #expect(off.targetFrames[win3]!.origin.x == 988)
     }
     
     @Test("Sliding window does not disappear midway and reaches right end smoothly")

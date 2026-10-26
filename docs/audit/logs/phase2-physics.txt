@@ -1,0 +1,19 @@
+== Spring solver ==
+== ScrollController ==
+== Direct-touch resampling (D04) ==
+BENCH direct_bursty hz= 60 frozen=0/59 p50=9.60 p95=9.60 max=9.60 total=576.00 latency_ms=8.33 peak_pending=9.60
+BENCH direct_bursty hz= 80 frozen=0/59 p50=9.60 p95=9.60 max=9.60 total=576.00 latency_ms=6.25 peak_pending=9.60
+BENCH direct_bursty hz=120 frozen=0/59 p50=9.60 p95=9.60 max=9.60 total=576.00 latency_ms=4.17 peak_pending=9.60
+BENCH direct_bursty hz=240 frozen=0/59 p50=9.60 p95=9.60 max=9.60 total=576.00 latency_ms=2.08 peak_pending=9.60
+BENCH direct_60hz_input hz= 60 frozen=0/29 p50=19.20 p95=19.20 max=19.20 total=576.00 latency_ms=8.47 peak_pending=9.60
+BENCH direct_60hz_input hz= 80 frozen=0/39 p50=9.60 p95=19.20 max=19.20 total=576.00 latency_ms=6.36 peak_pending=9.60
+BENCH direct_60hz_input hz=120 frozen=0/59 p50=9.60 p95=9.60 max=9.60 total=576.00 latency_ms=4.17 peak_pending=9.60
+BENCH direct_60hz_input hz=240 frozen=2/119 p50=4.80 p95=4.80 max=9.60 total=576.00 latency_ms=6.01 peak_pending=14.40
+BENCH input_gap max_catchup=9.60 total=768.00
+BENCH single_event_360pt max_step=160.00 total=360.00
+== Gesture ownership (D06) ==
+== D01 geometry shrink / completion clamps ==
+== D02 settle termination ==
+== D09 deferred-callback safety ==
+
+PASS: 213 checks

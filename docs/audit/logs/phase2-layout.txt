@@ -1,0 +1,13 @@
+Phase 2 geometry gate: shared scroll-bounds authority
+captured: 2026-10-26 11:52:49 
+command: ./scripts/audit/run-layout-tests.sh (from the repository root)
+source hashes at run time:
+c82cc1356d311fa4322f2abc6452a7309e2a84c7  Sources/IumeCore/Models/CoreModels.swift
+edfa8b3274489f67b52b75f83eccf72111cec516  Sources/IumeCore/Models/ManagedWindow.swift
+b34dc281555dcd2e15107f76f1846169045f3c88  Sources/IumeCore/LayoutEngine/BoxTilingEngine.swift
+3b693c6f2202e8fb3641a73cc80672a23586ed09  Sources/IumeCore/LayoutEngine/LayoutEngine.swift
+715ef1f76fc738490e974167e2f66d603573985b  scripts/audit/harness/layout/main.swift
+exit: 0
+----------------------------------------------------------------------
+
+PASS: 75 checks

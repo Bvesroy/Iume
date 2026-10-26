@@ -7,5 +7,15 @@ cd "$PROJECT_ROOT"
 "$PROJECT_ROOT/scripts/build-rust.sh"
 
 echo "=== Building Iume (Debug) ==="
-swift build -c debug
-echo "Build succeeded! Executable at: .build/debug/Iume"
+SDK_FLAG=""
+BUILD_PATH=""
+if [ -d "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk" ]; then
+    SDK_FLAG="--sdk /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk"
+    BUILD_PATH="--build-path .build-sdk265"
+fi
+mkdir -p /tmp/swift-module-cache
+CLANG_MODULE_CACHE_PATH=/tmp/swift-module-cache \
+swift build --disable-sandbox -c debug $SDK_FLAG $BUILD_PATH \
+  -Xswiftc -module-cache-path -Xswiftc /tmp/swift-module-cache \
+  -Xcc -fmodules-cache-path=/tmp/swift-module-cache
+echo "Build succeeded! Executable at: ${BUILD_PATH:-.build}/debug/Iume"

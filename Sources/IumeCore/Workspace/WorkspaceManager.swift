@@ -59,9 +59,55 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
     private var suppressedFocusExpiration: TimeInterval = 0
     @Published public internal(set) var spaceWorkspaces: [WorkspaceKey: DisplayWorkspace] = [:]
     @Published public internal(set) var workspaces: [CGDirectDisplayID: DisplayWorkspace] = [:]
-    @Published public private(set) var activeDisplayId: CGDirectDisplayID = 0
+    @Published public private(set) var activeDisplayId: CGDirectDisplayID = 0 {
+        didSet {
+            guard oldValue != activeDisplayId else { return }
+            syncDisplayLinkWithActiveDisplay()
+        }
+    }
     @Published public private(set) var activeSpaceId: UInt64 = 1
     @Published public private(set) var activeWorkspaceIndex: Int = 1
+    
+    // High-frequency viewport offset tracking (decoupled from @Published workspaces to eliminate 60-120Hz Combine objectWillChange churn)
+    private var activeViewportOffsets: [CGDirectDisplayID: CGFloat] = [:]
+    private var lastMinimapUpdateTime: TimeInterval = 0
+    private var lastViewportTraceTime: TimeInterval = 0
+    private var pendingSettleWorkItem: DispatchWorkItem?
+
+    public func activeViewportOffset(for displayId: CGDirectDisplayID) -> CGFloat {
+        if displayId == activeDisplayId && scrollController.isMoving {
+            return activeViewportOffsets[displayId] ?? scrollController.currentOffset
+        }
+        return activeViewportOffsets[displayId] ?? workspaces[displayId]?.viewportOffset ?? 0.0
+    }
+
+    private func scheduleSettlePass() {
+        pendingSettleWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            self.pendingSettleWorkItem = nil
+            self.performSettlePass()
+        }
+        pendingSettleWorkItem = workItem
+        DispatchQueue.main.async(execute: workItem)
+    }
+
+    private func performSettlePass() {
+        guard var ws = self.workspaces[self.activeDisplayId] else { return }
+        let currentOffset = self.scrollController.currentOffset
+        ws.viewportOffset = currentOffset
+        self.activeViewportOffsets[self.activeDisplayId] = currentOffset
+        // Authoritative commit to @Published workspaces so observers get final rest geometry
+        self.workspaces[self.activeDisplayId] = ws
+        
+        self.applyPhysicalWindowPositions(workspace: ws)
+        
+        if let targetWinId = self.registry.focusedId,
+           targetWinId != self.lastFocusedWindowId {
+            self.suppressFocusNotification(for: targetWinId, duration: 0.60)
+            self.focusWindowProgrammatically(targetWinId)
+        }
+    }
     
     public var pendingTabAdditionColumnId: UUID?
     public var pendingTabAdditionPID: pid_t?
@@ -99,12 +145,21 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
         let key = WorkspaceKey(displayId: displayId, spaceId: sId, workspaceIndex: wIdx)
         spaceWorkspaces[key] = workspace
         if sId == activeSpaceId && wIdx == activeWorkspaceIndex {
+            activeViewportOffsets[displayId] = workspace.viewportOffset
             workspaces[displayId] = workspace
         }
     }
     
     public func setActiveDisplayId(_ id: CGDirectDisplayID) {
         activeDisplayId = id
+    }
+
+    /// Keep the display link on the panel that actually owns the viewport. Without
+    /// this it stays attached to the screen that was active at launch, so pacing
+    /// silently degrades (or dies) after moving the workspace to another display.
+    private func syncDisplayLinkWithActiveDisplay(force: Bool = false) {
+        guard let screen = cachedScreen(for: activeDisplayId) ?? NSScreen.main else { return }
+        scrollController.attachDisplayLink(to: screen, force: force)
     }
     
     private var screenCache: [CGDirectDisplayID: NSScreen] = [:]
@@ -156,7 +211,7 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
     // MARK: - Lifecycle
     
     public func start() {
-        diagnostics.log(category: "Lifecycle", message: "Starting Iume Window Manager")
+        diagnostics.log(category: "Lifecycle", message: "Starting Iume Window Manager enabled=\(settings.isEnabled) layout=\(settings.layoutMode.rawValue) freeze=\(settings.freezeOnRelease) freeform=\(settings.freeformScroll) loop=\(settings.loopMode)")
         
         displayManager.refreshDisplays()
         initializeWorkspaces()
@@ -167,8 +222,10 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
         }
         
         discoverAndRegisterWindows()
+        diagnostics.log(category: "Registration", message: "Startup discovery registered windows=\(registry.allWindows().count) columns=\(workspaces[activeDisplayId]?.columns.count ?? 0)")
         shortcutManager.registerDefaultShortcuts()
-        scrollController.startEventTap()
+        let tapStarted = scrollController.startEventTap()
+        diagnostics.log(level: tapStarted ? "INFO" : "ERROR", category: "Gesture", message: "Startup event tap active=\(tapStarted)")
         mouseStateKeeper.startMonitoring()
         startPeriodicReconcile()
         applyLayout(animated: false)
@@ -177,7 +234,7 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
     /// Arranges all open eligible windows into continuous slide mode strip immediately.
     @discardableResult
     public func kickstart() -> Int {
-        diagnostics.log(category: "Kickstart", message: "Kickstarting window arrangement into slide strip")
+        diagnostics.log(category: "Kickstart", message: "Kickstarting window arrangement into slide strip; previous enabled=\(settings.isEnabled)")
         
         displayManager.refreshDisplays()
         initializeWorkspaces()
@@ -191,6 +248,14 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
         let wasEnabled = settings.isEnabled
         settings.isEnabled = true
         settings.layoutMode = .scrollStrip
+        // [LOCKED SECTION: PERFECT_SCROLLING_PHYSICS_ENGINE:KickstartPhysicsActivation]
+        // Description: Guarantees kickstart activates full inertial, momentum, and smooth scrolling engine.
+        // Ensure that kickstarting activates the full inertial, momentum, and smooth scrolling engine
+        settings.freezeOnRelease = false
+        settings.inertialScrolling = true
+        settings.momentumScrolling = true
+        settings.smoothScrollingEnabled = true
+        // [END LOCKED SECTION: PERFECT_SCROLLING_PHYSICS_ENGINE:KickstartPhysicsActivation]
         
         // Preserve pre-tiling frames if re-kickstarting while already actively managing
         registry.removeAll(keepOriginalFrames: wasEnabled)
@@ -201,8 +266,13 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
         }
         
         discoverAndRegisterWindows()
+        diagnostics.log(category: "Registration", message: "Kickstart discovery registered windows=\(registry.allWindows().count) columns=\(workspaces[activeDisplayId]?.columns.count ?? 0)")
         shortcutManager.registerDefaultShortcuts()
-        scrollController.startEventTap()
+        let tapStarted = scrollController.startEventTap()
+        diagnostics.log(level: tapStarted ? "INFO" : "ERROR", category: "Gesture", message: "Kickstart event tap active=\(tapStarted)")
+        mouseStateKeeper.startMonitoring()
+        syncDisplayLinkWithActiveDisplay(force: true)
+        settings.flushMemoryToDisk()
         startPeriodicReconcile()
         
         if var ws = workspaces[activeDisplayId] {
@@ -211,15 +281,18 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
             workspaces[activeDisplayId] = ws
         }
         
-        applyLayout(animated: true)
+        // Kickstart is an activation transaction: register and place every
+        // discovered window immediately, then leave scrolling to the live path.
+        applyLayout(animated: false)
         
         let count = registry.allWindows().count
-        diagnostics.log(category: "Kickstart", message: "Kickstart complete: \(count) windows arranged into slide strip")
+        diagnostics.log(category: "Kickstart", message: "Kickstart complete: \(count) windows arranged into slide strip; tap=\(tapStarted) monitoring=true")
         return count
     }
     
-    public func stop() {
+    public func stop(preserveEnabledState: Bool = false) {
         diagnostics.log(category: "Lifecycle", message: "Stopping Iume Window Manager")
+        let wasEnabled = settings.isEnabled
         settings.isEnabled = false
         periodicReconcileTimer?.invalidate()
         periodicReconcileTimer = nil
@@ -244,6 +317,11 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
         registry.removeAll(keepOriginalFrames: false)
         workspaces.removeAll()
         spaceWorkspaces.removeAll()
+        if preserveEnabledState {
+            settings.isEnabled = wasEnabled
+            settings.flushMemoryToDisk()
+            diagnostics.log(category: "Lifecycle", message: "Termination cleanup preserved enabled=\(wasEnabled)")
+        }
     }
     
     private func setupMouseUpMonitoring() {
@@ -331,14 +409,64 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
         schedulePersistenceSave()
     }
     
+    // MARK: - Authoritative Scroll Geometry
+
+    /// Resolves the current workspace scroll bounds exactly once. Every scroll,
+    /// settle, snap, scrub, keyboard and drag path funnels through here so no
+    /// caller can invent a different margin/gap/loop formula (D18, D03).
+    private func scrollBounds(for ws: DisplayWorkspace) -> LayoutEngine.ScrollBounds {
+        let totalWins = ws.columns.reduce(0) { $0 + $1.windowIds.count }
+        let isBuiltin = CGDisplayIsBuiltin(ws.displayGeometry.id) == 1
+        return layoutEngine.scrollBounds(
+            columns: ws.columns,
+            visibleFrame: ws.displayGeometry.visibleFrame,
+            edgeMargins: settings.edgeMargins,
+            totalWindowCount: totalWins,
+            smartWindowMargins: settings.smartWindowMargins,
+            disablePaddingOnBuiltinDisplay: settings.disablePaddingOnBuiltinDisplay,
+            isBuiltinDisplay: isBuiltin,
+            centerMode: settings.centerMode,
+            windowGap: settings.appsEdgeTogether ? 0.0 : CGFloat(settings.windowGap),
+            layoutMode: settings.layoutMode,
+            loopMode: settings.loopMode
+        )
+    }
+
+    /// Publishes the authoritative bounds onto the controller and returns them.
+    /// The loop flag is derived from geometry, never from the setting alone.
+    @discardableResult
+    private func refreshScrollBounds(for ws: DisplayWorkspace) -> LayoutEngine.ScrollBounds {
+        let bounds = scrollBounds(for: ws)
+        scrollController.maxOffset = bounds.maxOffset
+        scrollController.isLoopModeEnabled = bounds.loopEligible
+        scrollController.loopPeriod = layoutEngine.cyclicStripPeriod(columns: ws.columns, gap: bounds.gap)
+        return bounds
+    }
+
+    /// Centers the focused column through the same bounds every other scroll
+    /// path uses. Menu-bar actions call this instead of re-deriving a limit.
+    public func centerFocusedColumn() {
+        guard let ws = workspaces[activeDisplayId], let current = ws.focusedColumnIndex else { return }
+        let bounds = refreshScrollBounds(for: ws)
+        let centerOffset = layoutEngine.centerColumnOffset(
+            at: current,
+            columns: ws.columns,
+            visibleWidth: bounds.usableWidth,
+            loopMode: bounds.loopEligible
+        )
+        let target = bounds.loopEligible ? centerOffset : min(centerOffset, bounds.maxOffset)
+        scrollController.scrollTo(target: target, maxOffset: bounds.maxOffset, duration: settings.animationDuration)
+    }
+
     public func setupMinimapHUDCallbacks() {
         let hud = MinimapHUDController.shared
         hud.onScrub = { [weak self] ratio in
             guard let self = self else { return }
             guard var ws = self.workspaces[self.activeDisplayId] else { return }
-            let totalW = self.layoutEngine.totalStripWidth(columns: ws.columns)
-            let maxOffset = max(0, totalW - ws.displayGeometry.visibleFrame.width)
-            let target = CGFloat(ratio) * maxOffset
+            // Scrub maps the ratio onto the authoritative scroll extent, so it
+            // cannot disagree with trackpad, keyboard, or snap bounds (D18).
+            let bounds = self.refreshScrollBounds(for: ws)
+            let target = CGFloat(ratio) * bounds.maxOffset
             ws.viewportOffset = target
             self.workspaces[self.activeDisplayId] = ws
             self.applyLayout(animated: false)
@@ -495,6 +623,9 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
                 registry.register(window: managed, axElement: axElement)
                 observer.observeWindow(element: axElement, pid: managed.pid)
                 allDiscoveredWindows.append((managed, axElement))
+                if managed.frame.width >= 200 {
+                    controller.recordAppliedFrame(managed.frame, for: managed.id)
+                }
             }
         }
         
@@ -659,26 +790,40 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
         // Query dynamic max offset on scroll start
         scrollController.onQueryMaxOffset = { [weak self] in
             guard let self = self, let ws = self.workspaces[self.activeDisplayId], !ws.columns.isEmpty else { return 0.0 }
-            let totalWins = ws.columns.reduce(0) { $0 + $1.windowIds.count }
-            let isBuiltin = CGDisplayIsBuiltin(ws.displayGeometry.id) == 1
-            let collapseMargins = (self.settings.smartWindowMargins && totalWins <= 1) || (self.settings.disablePaddingOnBuiltinDisplay && isBuiltin)
-            let effectiveMargins = collapseMargins ? EdgeMargins.zero : self.settings.edgeMargins
-            let effectiveGap = (self.settings.smartWindowMargins && totalWins <= 1) ? 0.0 : CGFloat(self.settings.windowGap)
-            let usableWidth = max(200, ws.displayGeometry.visibleFrame.width - effectiveMargins.left - effectiveMargins.right)
-            return self.layoutEngine.maxScrollOffset(columns: ws.columns, visibleWidth: usableWidth, centerMode: self.settings.centerMode, gap: effectiveGap)
+            return self.refreshScrollBounds(for: ws).maxOffset
         }
         
         scrollController.onViewportOffsetChanged = { [weak self] newOffset in
             guard let self = self else { return }
+            self.activeViewportOffsets[self.activeDisplayId] = newOffset
             guard var ws = self.workspaces[self.activeDisplayId] else { return }
             ws.viewportOffset = newOffset
-            self.workspaces[self.activeDisplayId] = ws
-            self.applyPhysicalWindowPositions(workspace: ws)
+            if UserDefaults.standard.bool(forKey: "iume.gestureDiagnostics") {
+                let now = CACurrentMediaTime()
+                if now - self.lastViewportTraceTime >= 0.10 {
+                    self.lastViewportTraceTime = now
+                    self.diagnostics.log(category: "Viewport", message: "offset=\(newOffset) moving=\(self.scrollController.isMoving) windows=\(self.registry.allWindows().count)")
+                }
+            }
+            // Decoupled from @Published workspaces during continuous motion:
+            // Do NOT reassign self.workspaces[self.activeDisplayId] = ws during continuous motion!
+            // Passing `ws` with `newOffset` to `applyPhysicalWindowPositions(workspace: ws)`
+            // ensures layout computation uses the real-time active offset without firing
+            // Combine objectWillChange at 60-120 Hz.
+            if self.scrollController.isMoving {
+                self.pendingSettleWorkItem?.cancel()
+                self.pendingSettleWorkItem = nil
+                self.applyPhysicalWindowPositions(workspace: ws)
+            }
         }
         
-        // Minimap HUD activity updates (strictly throttled & conditioned on user setting)
+        // Minimap HUD activity updates (strictly throttled to ≤ 30 Hz & conditioned on user setting)
         scrollController.onScrollActivity = { [weak self] offset, maxOffset, velocity in
-            guard let self = self, self.settings.showMinimapHUD, let ws = self.workspaces[self.activeDisplayId] else { return }
+            guard let self = self, self.settings.showMinimapHUD else { return }
+            let now = CACurrentMediaTime()
+            guard now - self.lastMinimapUpdateTime >= 0.033 else { return }
+            guard let ws = self.workspaces[self.activeDisplayId] else { return }
+            self.lastMinimapUpdateTime = now
             let activeTitle = self.registry.focusedId.flatMap { self.registry.get(windowId: $0)?.title } ?? ""
             let screen = self.cachedScreen(for: self.activeDisplayId)
             MinimapHUDController.shared.update(
@@ -688,21 +833,21 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
                 visibleWidth: ws.displayGeometry.visibleFrame.width,
                 focusedIndex: ws.focusedColumnIndex,
                 activeTitle: activeTitle,
-                screen: screen
+                screen: screen,
+                // Scroll activity is the explicit reveal boundary. Without this
+                // flag an auto-hidden HUD receives state updates but is never
+                // ordered back onto the screen.
+                reveal: self.scrollController.lastActivitySource != .programmatic
             )
         }
         
         // Settle & snapping requested after 2-finger scroll
         scrollController.onSettleRequested = { [weak self] projectedOffset in
             guard let self = self, let ws = self.workspaces[self.activeDisplayId], !ws.columns.isEmpty else { return }
-            let effectiveGap = self.settings.appsEdgeTogether ? 0.0 : CGFloat(self.settings.windowGap)
-            let usableWidth = max(200, ws.displayGeometry.visibleFrame.width - self.settings.edgeMargins.left - self.settings.edgeMargins.right)
-            let maxOffset = self.layoutEngine.maxScrollOffset(
-                columns: ws.columns,
-                visibleWidth: usableWidth,
-                centerMode: self.settings.centerMode,
-                gap: effectiveGap
-            )
+            let bounds = self.refreshScrollBounds(for: ws)
+            let maxOffset = bounds.maxOffset
+            let usableWidth = bounds.usableWidth
+            let effectiveGap = bounds.gap
             
             if self.settings.freezeOnRelease || self.settings.freeformScroll || !self.settings.snapToColumn {
                 let clampedOffset = min(max(0, projectedOffset), maxOffset)
@@ -721,8 +866,10 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
                     self.suppressFocusNotification(for: targetWinId, duration: 0.60)
                 }
                 self.workspaces[self.activeDisplayId] = updatedWs
+                self.activeViewportOffsets[self.activeDisplayId] = clampedOffset
                 self.scrollController.setOffset(clampedOffset, maxOffset: maxOffset)
-                self.applyPhysicalWindowPositions(workspace: updatedWs)
+                // Coalesce settle application onto main queue; do not run AX IPC inside displayLinkFired
+                self.scheduleSettlePass()
                 return
             }
             
@@ -732,7 +879,9 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
                 columns: ws.columns,
                 visibleWidth: usableWidth,
                 centerMode: self.settings.centerMode,
-                gap: effectiveGap
+                gap: effectiveGap,
+                loopMode: bounds.loopEligible,
+                layoutMode: self.settings.layoutMode
             )
             
             var updatedWs = ws
@@ -754,13 +903,23 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
         
         // Final settle pass when spring animation has settled
         scrollController.onAnimationCompleted = { [weak self] in
-            guard let self = self, let ws = self.workspaces[self.activeDisplayId] else { return }
-            self.applyPhysicalWindowPositions(workspace: ws)
-            if let targetWinId = self.registry.focusedId,
-               targetWinId != self.lastFocusedWindowId {
-                self.suppressFocusNotification(for: targetWinId, duration: 0.60)
-                self.focusWindowProgrammatically(targetWinId)
+            guard let self = self else { return }
+            // The strip can grow or shrink while a spring is in flight (window
+            // closed, column removed, display resized). Re-query the authoritative
+            // limit and clamp before the final frame write, otherwise we settle on
+            // a destination that no longer exists.
+            if let queried = self.scrollController.onQueryMaxOffset?(), queried.isFinite {
+                let newMax = max(0, queried)
+                if abs(newMax - self.scrollController.maxOffset) > 0.5 {
+                    self.scrollController.maxOffset = newMax
+                }
+                if !self.scrollController.isLoopModeEnabled,
+                   self.scrollController.currentOffset > newMax + 0.5 {
+                    self.scrollController.setOffset(newMax, maxOffset: newMax)
+                }
             }
+            // Coalesce final settle application onto main queue
+            self.scheduleSettlePass()
         }
         
         // Focus manager requests
@@ -835,6 +994,13 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
             self?.duplicateTab(windowId: winId, inColumnWithId: colId)
         }
         
+        // Window verification updates (app-quantized bounds sync, e.g. Terminal, Xcode)
+        controller.onWindowFrameVerified = { [weak self] winId, verifiedFrame in
+            DispatchQueue.main.async {
+                self?.handleWindowFrameVerified(winId: winId, verifiedFrame: verifiedFrame)
+            }
+        }
+        
         // Keyboard shortcuts
         shortcutManager.onShortcutTriggered = { [weak self] action in
             guard let self = self else { return }
@@ -857,11 +1023,22 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
         
         // Dynamic permission state changes
         permissions.onPermissionStateChanged = { [weak self] granted in
-            guard let self = self, granted else { return }
+            guard let self = self else { return }
+            guard granted else {
+                self.diagnostics.log(level: "WARN", category: "Permissions", message: "Accessibility permission revoked. Suspending motion pipeline.")
+                // Tear down the tap and park the physics so no animation keeps
+                // running against an inaccessible WindowServer.
+                self.scrollController.stopEventTap()
+                self.scrollController.suspend()
+                self.mouseStateKeeper.stopMonitoring()
+                return
+            }
             self.diagnostics.log(category: "Permissions", message: "Accessibility permission granted! Bootstrapping windows...")
             self.discoverAndRegisterWindows()
             self.shortcutManager.registerDefaultShortcuts()
             self.scrollController.startEventTap()
+            self.mouseStateKeeper.startMonitoring()
+            self.syncDisplayLinkWithActiveDisplay()
             self.applyLayout(animated: false)
         }
         
@@ -1043,6 +1220,9 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
             if registry.get(windowId: managed.id) != nil { continue }
             registry.register(window: managed, axElement: axElement)
             observer.observeWindow(element: axElement, pid: managed.pid)
+            if managed.frame.width >= 200 {
+                controller.recordAppliedFrame(managed.frame, for: managed.id)
+            }
             guard !managed.isFloating && !managed.isMinimized else { continue }
             
             if var ws = workspaces[targetDisplayId] {
@@ -1516,22 +1696,22 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
         case .cyclePrev:
             cycleWindowOrTab(forward: false)
         case .scrollLeft:
-            let maxOffset = layoutEngine.maxScrollOffset(columns: ws.columns, visibleWidth: ws.displayGeometry.visibleFrame.width, centerMode: settings.centerMode)
+            let bounds = refreshScrollBounds(for: ws)
             let base = scrollController.isMoving ? scrollController.smoothTargetOffset : scrollController.currentOffset
-            let targetOffset = max(0, base - 180)
+            let targetOffset = bounds.loopEligible ? base - 180 : max(0, base - 180)
             if settings.enableTransitions {
-                scrollController.scrollTo(target: targetOffset, maxOffset: maxOffset, duration: settings.animationDuration, initialVelocity: scrollController.currentVelocity)
+                scrollController.scrollTo(target: targetOffset, maxOffset: bounds.maxOffset, duration: settings.animationDuration, initialVelocity: scrollController.currentVelocity)
             } else {
-                scrollController.scrollBy(deltaX: -180, maxOffset: maxOffset)
+                scrollController.scrollBy(deltaX: -180, maxOffset: bounds.maxOffset)
             }
         case .scrollRight:
-            let maxOffset = layoutEngine.maxScrollOffset(columns: ws.columns, visibleWidth: ws.displayGeometry.visibleFrame.width, centerMode: settings.centerMode)
+            let bounds = refreshScrollBounds(for: ws)
             let base = scrollController.isMoving ? scrollController.smoothTargetOffset : scrollController.currentOffset
-            let targetOffset = min(maxOffset, base + 180)
+            let targetOffset = bounds.loopEligible ? base + 180 : min(bounds.maxOffset, base + 180)
             if settings.enableTransitions {
-                scrollController.scrollTo(target: targetOffset, maxOffset: maxOffset, duration: settings.animationDuration, initialVelocity: scrollController.currentVelocity)
+                scrollController.scrollTo(target: targetOffset, maxOffset: bounds.maxOffset, duration: settings.animationDuration, initialVelocity: scrollController.currentVelocity)
             } else {
-                scrollController.scrollBy(deltaX: 180, maxOffset: maxOffset)
+                scrollController.scrollBy(deltaX: 180, maxOffset: bounds.maxOffset)
             }
         case .cycleWidth:
             if let current = ws.focusedColumnIndex {
@@ -1563,9 +1743,15 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
             }
         case .centerColumn:
             if let current = ws.focusedColumnIndex {
-                let maxOffset = layoutEngine.maxScrollOffset(columns: ws.columns, visibleWidth: ws.displayGeometry.visibleFrame.width, centerMode: settings.centerMode)
-                let centerOffset = layoutEngine.centerColumnOffset(at: current, columns: ws.columns, visibleWidth: ws.displayGeometry.visibleFrame.width)
-                scrollController.scrollTo(target: min(centerOffset, maxOffset), maxOffset: maxOffset, duration: settings.animationDuration)
+                let bounds = refreshScrollBounds(for: ws)
+                let centerOffset = layoutEngine.centerColumnOffset(
+                    at: current,
+                    columns: ws.columns,
+                    visibleWidth: bounds.usableWidth,
+                    loopMode: bounds.loopEligible
+                )
+                let target = bounds.loopEligible ? centerOffset : min(centerOffset, bounds.maxOffset)
+                scrollController.scrollTo(target: target, maxOffset: bounds.maxOffset, duration: settings.animationDuration)
             }
         case .fullWidth:
             if let current = ws.focusedColumnIndex {
@@ -2980,13 +3166,7 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
         
         let isFreeform = settings.freeformScroll || !settings.snapToColumn
         let effectiveLayoutMode: LayoutMode = settings.layoutMode
-        
-        let totalWins = ws.columns.reduce(0) { $0 + $1.windowIds.count }
-        let isBuiltin = CGDisplayIsBuiltin(ws.displayGeometry.id) == 1
-        let collapseMargins = (settings.smartWindowMargins && totalWins <= 1) || (settings.disablePaddingOnBuiltinDisplay && isBuiltin)
-        let effectiveMargins = collapseMargins ? EdgeMargins.zero : settings.edgeMargins
-        let effectiveGap = (settings.smartWindowMargins && totalWins <= 1) ? 0.0 : CGFloat(settings.windowGap)
-        let usableWidth = max(200, ws.displayGeometry.visibleFrame.width - effectiveMargins.left - effectiveMargins.right)
+        let bounds = refreshScrollBounds(for: ws)
         
         let computation = layoutEngine.computeLayout(
             columns: ws.columns,
@@ -2997,17 +3177,12 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
             layoutMode: effectiveLayoutMode,
             centerMode: settings.centerMode,
             edgeMargins: settings.edgeMargins,
-            gap: effectiveGap,
-            isBuiltinDisplay: isBuiltin,
+            gap: bounds.gap,
+            isBuiltinDisplay: CGDisplayIsBuiltin(ws.displayGeometry.id) == 1,
             disablePaddingOnBuiltinDisplay: settings.disablePaddingOnBuiltinDisplay,
             smartWindowMargins: settings.smartWindowMargins,
-            loopMode: settings.loopMode
+            loopMode: bounds.loopEligible
         )
-        
-        let maxOffset = layoutEngine.maxScrollOffset(columns: ws.columns, visibleWidth: usableWidth, centerMode: settings.centerMode, gap: effectiveGap)
-        scrollController.maxOffset = maxOffset
-        scrollController.isLoopModeEnabled = settings.loopMode
-        scrollController.loopPeriod = layoutEngine.cyclicStripPeriod(columns: ws.columns, gap: effectiveGap)
         
         // Update Minimap HUD (strictly throttled & conditioned on user setting)
         if settings.showMinimapHUD {
@@ -3028,14 +3203,14 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
         if animated && !scrollController.isMoving && !isFreeform && abs(targetOffset - ws.viewportOffset) > 8.0 {
             scrollController.scrollTo(
                 target: targetOffset,
-                maxOffset: maxOffset,
+                maxOffset: bounds.maxOffset,
                 duration: settings.animationDuration
             )
         } else {
             var updatedWs = ws
             updatedWs.viewportOffset = targetOffset
             workspaces[activeDisplayId] = updatedWs
-            scrollController.setOffset(targetOffset, maxOffset: maxOffset)
+            scrollController.setOffset(targetOffset, maxOffset: bounds.maxOffset)
             applyPhysicalWindowPositions(workspace: updatedWs)
         }
     }
@@ -3071,16 +3246,34 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
             }
         }
         
+        // Pre-layout sync: ensure single-window columns reflect their verified physical width (e.g. Terminal character quantization)
+        var effectiveWorkspace = workspace
+        var columnsAdjusted = false
+        for (idx, col) in effectiveWorkspace.columns.enumerated() where col.windowIds.count == 1 {
+            let winId = col.windowIds[0]
+            if let verifiedWidth = controller.frameState(for: winId)?.verifiedFrame?.width,
+               verifiedWidth >= 200.0 {
+                let diff = abs(verifiedWidth - col.width)
+                if diff >= 1.0 && diff <= 300.0 {
+                    effectiveWorkspace.columns[idx].width = verifiedWidth
+                    columnsAdjusted = true
+                }
+            }
+        }
+        if columnsAdjusted {
+            workspaces[workspace.displayGeometry.id] = effectiveWorkspace
+        }
+        
         let effectiveLayoutMode: LayoutMode = settings.layoutMode
-        let isBuiltin = CGDisplayIsBuiltin(workspace.displayGeometry.id) != 0
-        let totalWins = workspace.columns.reduce(0) { $0 + $1.windowIds.count }
-        let effectiveGap = (settings.smartWindowMargins && totalWins <= 1) ? 0.0 : CGFloat(settings.windowGap)
+        let isBuiltin = CGDisplayIsBuiltin(effectiveWorkspace.displayGeometry.id) != 0
+        let bounds = refreshScrollBounds(for: effectiveWorkspace)
+        let effectiveGap = bounds.gap
         let computation = layoutEngine.computeLayout(
-            columns: workspace.columns,
+            columns: effectiveWorkspace.columns,
             windows: registry.windowMap(),
-            focusedColumnIndex: workspace.focusedColumnIndex,
-            visibleFrame: workspace.displayGeometry.visibleFrame,
-            viewportOffset: workspace.viewportOffset,
+            focusedColumnIndex: effectiveWorkspace.focusedColumnIndex,
+            visibleFrame: effectiveWorkspace.displayGeometry.visibleFrame,
+            viewportOffset: effectiveWorkspace.viewportOffset,
             layoutMode: effectiveLayoutMode,
             centerMode: settings.centerMode,
             edgeMargins: settings.edgeMargins,
@@ -3088,16 +3281,16 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
             isBuiltinDisplay: isBuiltin,
             disablePaddingOnBuiltinDisplay: settings.disablePaddingOnBuiltinDisplay,
             smartWindowMargins: settings.smartWindowMargins,
-            loopMode: settings.loopMode
+            loopMode: bounds.loopEligible
         )
         
-        let vis = workspace.displayGeometry.visibleFrame
+        let vis = effectiveWorkspace.displayGeometry.visibleFrame
         
         var placements: [WindowPlacement] = []
         placements.reserveCapacity(computation.targetFrames.count)
         
         // Order placements deterministically by column strip sequence so adjacent windows are always updated in strict sequence
-        for col in workspace.columns {
+        for col in effectiveWorkspace.columns {
             for winId in col.windowIds {
                 guard let targetFrame = computation.targetFrames[winId],
                       let ax = registry.getAXElement(windowId: winId) else { continue }
@@ -3106,12 +3299,11 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
                 if !isMoving {
                     registry.update(windowId: winId) { $0.frame = targetFrame }
                 }
-                observer.recordExpectedFrame(targetFrame, for: winId, duration: 0.65)
             }
         }
         
         // Edge Sliver Clamping and CGS Z-Ordering (TileMyMac & ChainYourMac Parity)
-        controller.applyStripFrames(
+        let writtenFrames = controller.applyStripFrames(
             placements: placements,
             visibleFrame: vis,
             focusedWindowId: registry.focusedId,
@@ -3119,8 +3311,16 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
             resizingWindowId: resizingWindowId
         )
         
-        // Tab Bar Overlay: floating Chrome-style strips aligned to their columns
-        updateTabBarOverlays(for: workspace)
+        // Scoped expected-frame registration: only register frames for windows where a genuine write was issued.
+        // This eliminates dictionary churn and prevents feedback loops on stationary/resizing windows.
+        for (winId, targetFrame) in writtenFrames {
+            observer.recordExpectedFrame(targetFrame, for: winId, duration: 0.65)
+        }
+        
+        // Tab Bar Overlay: floating Chrome-style strips aligned to their columns.
+        // Contents only change when the layout settles; during motion only the
+        // positions move, so skip the per-column candidate rebuild.
+        updateTabBarOverlays(for: effectiveWorkspace, refreshContent: !isMoving)
         
         // Inactive Window Dimming
         if settings.dimUnfocusedWindows {
@@ -3149,7 +3349,7 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
     /// Positions or hides the floating tab bars for one display. Keeping this in
     /// one place means title changes and focus changes can refresh tab content
     /// without re-tiling application windows.
-    private func updateTabBarOverlays(for workspace: DisplayWorkspace) {
+    private func updateTabBarOverlays(for workspace: DisplayWorkspace, refreshContent: Bool = true) {
         let displayId = workspace.displayGeometry.id
         guard !settings.disabledDisplayIds.contains(displayId),
               workspace.columns.contains(where: { $0.showsTabBar }) else {
@@ -3179,7 +3379,8 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
             visibleFrame: vis,
             displayId: displayId,
             primaryScreenHeight: primaryScreenHeight,
-            columnFrames: columnFrames
+            columnFrames: columnFrames,
+            refreshContent: refreshContent
         )
     }
     
@@ -3244,16 +3445,39 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
                var ws = workspaces[activeDisplayId],
                let colIdx = ws.columns.firstIndex(where: { $0.windowIds.contains(winId) }),
                ws.columns[colIdx].windowIds.count == 1 {
-                let vis = ws.displayGeometry.visibleFrame
-                let isOnScreen = observedFrame.maxX > vis.minX + 40 && observedFrame.minX < vis.maxX - 40
                 let widthDiff = abs(observedFrame.width - ws.columns[colIdx].width)
-                if isOnScreen && widthDiff >= 2.0 && widthDiff <= 240.0 {
+                if widthDiff >= 1.0 && widthDiff <= 300.0 && observedFrame.width >= 200.0 {
                     ws.columns[colIdx].width = observedFrame.width
                     workspaces[activeDisplayId] = ws
                     applyPhysicalWindowPositions(workspace: ws)
                 }
             }
             return
+        }
+    }
+
+    /// Synchronizes column width to an application's verified physical frame (e.g. Terminal character grid quantization)
+    public func handleWindowFrameVerified(winId: WindowId, verifiedFrame: CGRect) {
+        guard !scrollController.isMoving else { return }
+        guard activelyResizingWindowId == nil, activelyDraggingWindowId == nil else { return }
+        
+        for (dispId, var ws) in workspaces {
+            guard let colIdx = ws.columns.firstIndex(where: { $0.windowIds.contains(winId) }) else { continue }
+            guard ws.columns[colIdx].windowIds.count == 1 else { continue }
+            
+            let col = ws.columns[colIdx]
+            let widthDiff = abs(verifiedFrame.width - col.width)
+            
+            if widthDiff >= 1.0 && widthDiff <= 300.0 && verifiedFrame.width >= 200.0 {
+                diagnostics.log(category: "Layout", message: "Syncing column \(colIdx) width from \(col.width) to verified width \(verifiedFrame.width) for window \(winId)")
+                ws.columns[colIdx].width = verifiedFrame.width
+                workspaces[dispId] = ws
+                if dispId == activeDisplayId {
+                    applyPhysicalWindowPositions(workspace: ws)
+                }
+                schedulePersistenceSave()
+                return
+            }
         }
     }
     
@@ -3549,7 +3773,8 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
     
     public func applyScrollDelta(_ delta: CGFloat) {
         guard let ws = workspaces[activeDisplayId] else { return }
-        let maxOffset = layoutEngine.maxScrollOffset(columns: ws.columns, visibleWidth: ws.displayGeometry.visibleFrame.width, centerMode: settings.centerMode)
+        let bounds = refreshScrollBounds(for: ws)
+        let maxOffset = bounds.maxOffset
         let multiplier: CGFloat = settings.trackpadNaturalScroll ? -1.0 : 1.0
         let effectiveDelta = delta * multiplier
         scrollController.scrollBy(deltaX: effectiveDelta, maxOffset: maxOffset)
@@ -3634,7 +3859,15 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
 
     
     private func handleDisplaysChanged(_ displays: [DisplayGeometry]) {
-        guard !displays.isEmpty else { return }
+        guard !displays.isEmpty else {
+            // Every display went away (clamshell/undock). Holding a CADisplayLink
+            // to a removed panel is not safe; park motion until a display returns.
+            scrollController.suspend()
+            return
+        }
+        // NSScreen handles can survive a monitor swap in the cache; force a rebuild
+        // before reattaching the display link.
+        clearScreenCache()
         let currentIds = Set(displays.map { $0.id })
         
         // Recover disconnected monitors: migrate windows to primary
@@ -3662,6 +3895,7 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
         }
         
         activeDisplayId = primary.id
+        syncDisplayLinkWithActiveDisplay(force: true)
         applyLayout(animated: false)
     }
 }
@@ -3701,11 +3935,10 @@ extension WorkspaceManager {
         // 2. Settle drag displacement into viewportOffset so windows don't bounce back
         let finalFrame = registry.get(windowId: windowId)?.frame ?? initialFrame
         let deltaX = finalFrame.minX - initialFrame.minX
-        let usableWidth = max(200, ws.displayGeometry.visibleFrame.width - settings.edgeMargins.left - settings.edgeMargins.right)
-        let maxOffset = layoutEngine.maxScrollOffset(columns: ws.columns, visibleWidth: usableWidth, centerMode: settings.centerMode)
+        let bounds = refreshScrollBounds(for: ws)
         
         if abs(deltaX) > 2.0 {
-            ws.viewportOffset = max(0, min(maxOffset, ws.viewportOffset - deltaX))
+            ws.viewportOffset = max(0, min(bounds.maxOffset, ws.viewportOffset - deltaX))
         }
         
         workspaces[activeDisplayId] = ws

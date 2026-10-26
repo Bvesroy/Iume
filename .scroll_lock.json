@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "algorithm": "PBKDF2-HMAC-SHA256",
+  "iterations": 200000,
+  "token_secret": "1f92bcfb3f14b026e4b86890a1a1ca5f9d60e406f2ce8095ad95e2502ff30d03",
+  "files": {
+    "Sources/IumeCore/Controller/ScrollController.swift": [
+      {
+        "id": "stepTracking",
+        "start_line": 771,
+        "end_line": 850,
+        "sha256": "1a7e3428a8e7e2a2eb9d65e206bb5f33b2241e30b8bdbb972bf78f6cb4546cab",
+        "length_lines": 78
+      },
+      {
+        "id": "stepDeceleration",
+        "start_line": 877,
+        "end_line": 969,
+        "sha256": "1b393b224b89b31e6619777ea4a76d12f9ab267ad7f8cb8fd32d39bfe82ebc7d",
+        "length_lines": 91
+      },
+      {
+        "id": "onScrollPhysicalLift",
+        "start_line": 1572,
+        "end_line": 1595,
+        "sha256": "e4fe1c91f23e07592faf5959a405ac9f51026d6596e87f24797240bbfd4ff449",
+        "length_lines": 22
+      }
+    ],
+    "Sources/IumeCore/Models/CoreModels.swift": [
+      {
+        "id": "KineticScrollingProfile",
+        "start_line": 729,
+        "end_line": 766,
+        "sha256": "6ce5fdf818bea6488de6af1da36890c25c1e9e2debdd1ece087a4c1fd012cfea",
+        "length_lines": 36
+      }
+    ],
+    "Sources/IumeCore/Settings/SettingsStore.swift": [
+      {
+        "id": "PhysicsSettingsProperties",
+        "start_line": 223,
+        "end_line": 268,
+        "sha256": "7c14a4ff6be9612c6a7a357342b232d5e5ec160b08ade5bb2bee6bcd91151cdb",
+        "length_lines": 44
+      }
+    ],
+    "Sources/IumeCore/Persistence/SettingsMemoryManager.swift": [
+      {
+        "id": "DefaultPhysicsSnapshotValues",
+        "start_line": 38,
+        "end_line": 49,
+        "sha256": "bd19c514ba04ac333b45b45c2bfcbcfd89bdf39b8ee091a90d559887e280bd8f",
+        "length_lines": 10
+      }
+    ],
+    "Sources/IumeCore/Workspace/WorkspaceManager.swift": [
+      {
+        "id": "KickstartPhysicsActivation",
+        "start_line": 251,
+        "end_line": 258,
+        "sha256": "88228483060841476886f9ad84955bc17c9d48120e284767dcce415f20a8eaa5",
+        "length_lines": 6
+      }
+    ],
+    "Sources/IumeCore/UI/LaunchHUDController.swift": [
+      {
+        "id": "HUDKickstartPhysicsActivation",
+        "start_line": 86,
+        "end_line": 94,
+        "sha256": "6d5d58f58d6fd9fefcb3dc580a63eb67034ce25328ab499b8393dcdcb5d31a4d",
+        "length_lines": 7
+      },
+      {
+        "id": "HUDScrollingDynamicsCard",
+        "start_line": 328,
+        "end_line": 476,
+        "sha256": "0ccc1036fe3a6faf356f1314d02af769e37cc8cbc47d697429a1e3f2274c609b",
+        "length_lines": 147
+      }
+    ],
+    "Sources/IumeCore/UI/StatusBarController.swift": [
+      {
+        "id": "StatusBarKineticSubmenu",
+        "start_line": 248,
+        "end_line": 288,
+        "sha256": "c890e945d3616955d521fd63ceec31e577730aef85d5df068cdf93f367929f29",
+        "length_lines": 39
+      },
+      {
+        "id": "StatusBarKineticActions",
+        "start_line": 427,
+        "end_line": 457,
+        "sha256": "ec0df3a0ee6dc5f58765db43f1a1f127bbf8df74bed49ad9264791467c5fa830",
+        "length_lines": 29
+      }
+    ]
+  },
+  "created_at": 1793024234.6340969,
+  "description": "Iume Perfect Scrolling Physics Engine Lock Manifest",
+  "salt": "26b43b6ec427797497e1f2617f2d988f",
+  "password_hash": "bdee5a972481f38c94f96d98e98843824b99e47af5fb31e7fc49faec053b4340",
+  "password_updated_at": 1793024234.661825,
+  "last_locked_at": 1793024259.5016582,
+  "total_sections": 11
+}
