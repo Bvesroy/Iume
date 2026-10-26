@@ -39,7 +39,7 @@ public final class MouseStateKeeper {
         startMonitoring()
     }
     
-    isolated deinit {
+    public func invalidate() {
         stopMonitoring()
     }
     
