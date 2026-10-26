@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary & Current Health Status
 
-**Iume** is designed to provide macOS with a fluid, continuous horizontal tiling strip inspired by Linux’s **PaperWM** and **niri**, and commercial macOS utilities such as **TileMyMac** and **ChainYourMac**. 
+**Iume** is designed to provide macOS with a fluid, continuous horizontal tiling strip inspired by Linux’s **PaperWM** and **niri**. 
 
 While the fundamental mathematical models (`LayoutEngine`), unit test suite (79/79 unit tests passing), and ProMotion display-link loop are implemented, real-world testing on macOS Sonoma and Sequoia reveals critical architectural feedback loops, input hijacking defects, and WindowServer boundary violations.
 
@@ -255,7 +255,7 @@ To prevent macOS WindowServer from clamping offscreen windows, Iume uses an edge
 
 #### 2. Required Engineering Fix
 1. **True Window Parking via CGS Window Ordering**:
-   Instead of physically stacking slivers within visible desktop space, use **CoreGraphics Services (CGS)** private APIs (standard practice in TileMyMac and PaperWM):
+   Instead of physically stacking slivers within visible desktop space, use **CoreGraphics Services (CGS)** private APIs:
    ```swift
    CGSOrderWindow(cid, windowId, kCGSOrderOut, 0) // Fully hide offscreen windows
    ```

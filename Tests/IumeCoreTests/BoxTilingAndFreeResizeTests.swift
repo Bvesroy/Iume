@@ -140,7 +140,7 @@ struct BoxTilingAndFreeResizeTests {
         #expect(abs(center.midY - bounds.midY) <= 1.0)
     }
     
-    @Test("Cycle fraction progression (Rectangle parity)")
+    @Test("Cycle fraction progression")
     func testCycleFractions() {
         var frac: CGFloat = 0.50
         frac = BoxTilingEngine.nextCycleFraction(after: frac)

@@ -11,3 +11,5 @@ dist/
 scratch/
 crates/iume_engine/target/
 .scroll_lock.token
+.freebuff/
+.freebuff

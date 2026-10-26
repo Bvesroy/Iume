@@ -232,7 +232,7 @@ public final class ShortcutManager {
         register(action: .cycleNext, keyCode: 0x30, modifiers: ctrlOpt, id: 28) // Ctrl + Opt + Tab
         register(action: .cyclePrev, keyCode: 0x30, modifiers: ctrlOptShift, id: 29) // Ctrl + Opt + Shift + Tab
         
-        // 9. Kickstart, Stop & ChainYourMac Extended Chords
+        // 9. Kickstart, Stop & Extended Chords
         register(action: .kickstart, keyCode: 0x31, modifiers: ctrlOpt, id: 30) // Ctrl + Opt + Space
         register(action: .stopAndRestore, keyCode: 0x0C, modifiers: ctrlOpt, id: 31) // Ctrl + Opt + Q
         register(action: .stopAndRestore, keyCode: 0x01, modifiers: ctrlOptShift, id: 32) // Ctrl + Opt + Shift + S
@@ -246,7 +246,7 @@ public final class ShortcutManager {
         register(action: .toggleFloatWindow, keyCode: 0x03, modifiers: ctrlOptShift, id: 40) // Ctrl + Opt + Shift + F
         register(action: .toggleMagneticSnapping, keyCode: 0x2E, modifiers: ctrlOpt, id: 41) // Ctrl + Opt + M
         
-        // 10. Amethyst Power-User Operations (Focus Displays, Reevaluate, Relaunch)
+        // 10. Advanced Power-User Operations (Focus Displays, Reevaluate, Relaunch)
         register(action: .focusDisplay1, keyCode: 0x12, modifiers: ctrlOptCmd, id: 70) // Ctrl + Opt + Cmd + 1
         register(action: .focusDisplay2, keyCode: 0x13, modifiers: ctrlOptCmd, id: 71) // Ctrl + Opt + Cmd + 2
         register(action: .focusDisplay3, keyCode: 0x14, modifiers: ctrlOptCmd, id: 72) // Ctrl + Opt + Cmd + 3

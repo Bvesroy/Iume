@@ -293,7 +293,7 @@ Cache via `settings.$scrollSmoothness` sink, not reading `SettingsStore.shared` 
 | **macOS 13 (Ventura) & earlier** | Any | **Unsupported** | Deprecated APIs; lacks Swift 6 Sendable + ServiceManagement |
 | **macOS 26 (Tahoe)** | — | **Needs testing** | Intel last supported (still in compat table as "add and test") — FIX docs say `SMAppService` arrived in macOS 13 not 14, so table underreports |
 
-> FIX-doc correction: `COMPATIBILITY.md` says macOS 14 needed for `SMAppService` — actually macOS 13. ChainYourMac supports 13+. `COMPATIBILITY.md` claims Intel "Supported" — ChainYourMac is Apple-silicon-only; Tahoe is last Intel macOS, so maintaining Intel doubles test matrix with diminishing return — decide deliberately.
+> FIX-doc correction: `COMPATIBILITY.md` says macOS 14 needed for `SMAppService` — actually macOS 13. `COMPATIBILITY.md` claims Intel "Supported" — Tahoe is last Intel macOS, so maintaining Intel doubles test matrix with diminishing return — decide deliberately.
 
 ### Hardware
 
@@ -823,7 +823,7 @@ Corrections where source docs contradict code or each other — fix docs before 
 | # | Doc Error / Drift | Correction |
 |---|---|---|
 | 1 | `COMPATIBILITY.md` says `SMAppService` needs macOS 14 | Actually macOS 13 (Ventura). Deployment target 14.0 is choice, not API floor. |
-| 2 | `COMPATIBILITY.md` says Intel "Supported" | ChainYourMac is Apple-silicon-only; Tahoe is last Intel macOS — Intel support doubles test matrix with diminishing return — decide deliberately. |
+| 2 | `COMPATIBILITY.md` says Intel "Supported" | Tahoe is last Intel macOS — Intel support doubles test matrix with diminishing return — decide deliberately. |
 | 3 | `ARCHITECTURE.md` / `COMPATIBILITY.md` display table missing Tahoe note | Add macOS 26 Tahoe "needs testing" row (already in §8). |
 | 4 | `PERMISSIONS.md` "No Network" absolute | Once Sparkle ships: "No telemetry; update check only, toggleable, offline by default." |
 | 5 | `MacSetupChecker.swift:151-152` only reads built-in trackpad domain | Must also read `-currentHost` global + `com.apple.trackpad.threeFingerHorizSwipeGesture`/`fourFingerHorizSwipeGesture`; Magic Trackpad uses different domain. |

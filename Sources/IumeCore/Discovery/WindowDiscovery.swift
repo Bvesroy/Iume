@@ -87,7 +87,7 @@ public struct WindowClassifier {
             return .smartFloat
         }
         
-        // 6. Amethyst Heuristic: Float small windows (utility panels/quick inspectors < threshold)
+        // 6. Size Heuristic: Float small windows (utility panels/quick inspectors < threshold)
         if let currentSize = copyCGSize(axWindow, attribute: kAXSizeAttribute as String),
            shouldFloatSmallWindow(size: currentSize, threshold: smallWindowThreshold, isEnabled: floatSmallWindows) {
             return .smartFloat

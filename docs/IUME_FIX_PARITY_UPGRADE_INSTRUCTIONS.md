@@ -1,6 +1,6 @@
 # Iume — Fixes, Feature Parity & Upgrade Instructions
 
-**Goal:** make Iume as smooth, reliable and complete as ChainYourMac / TileMyMac, with every behaviour happening automatically.
+**Goal:** make Iume as smooth, reliable and complete as possible, with every behaviour happening automatically.
 **Date:** 15 Oct 2026 · **Audience:** whoever is editing the Iume codebase (the developer or engineer).
 
 ---
@@ -10,12 +10,10 @@
 **What I analysed**
 - Your 6 docs: `ARCHITECTURE.md`, `COMPATIBILITY.md`, `TROUBLESHOOTING.md`, `SHORTCUTS.md`, `PERMISSIONS.md`, `FEASIBILITY_REPORT.md`
 - Your feature list and issue list
-- chainyourmac.com (home page) and chainyourmac.com/setup (the setup guide, which explains a lot about how they work)
 
 **What I could NOT do**
 - **I have not seen your source code.** Root causes below are *most likely causes inferred from your architecture docs*. Each one has a "Confirm" step (a 10-minute check) so you can verify before changing anything. Treat them as a ranked hypothesis list, not a verdict.
-- **tilemymac.com blocks automated access**, so I could not inspect it. Everything I say about "parity" comes from ChainYourMac's published pages. For smoothness, I give you measurable targets instead of guessing how TileMyMac does it.
-- Feature parity is fine; do **not** copy ChainYourMac's wording, icons, screenshots or UI assets.
+- For smoothness, I give you measurable targets.
 
 **Status legend:** ✅ present in your docs · 🟡 partial / unverified · ❌ not in your docs
 **Priority:** P0 = fix now · P1 = needed for parity · P2 = advanced parity · P3 = polish and automation
@@ -47,7 +45,7 @@
 
 Do this one first. Everything else is hard to test while permission keeps resetting.
 
-**Evidence in your docs:** `PERMISSIONS.md` says macOS "may retain a stale code-signature hash after a rebuild" and tells users to remove and re-add Iume, and to run `./scripts/build.sh`. That strongly suggests ad-hoc or inconsistently signed builds. ChainYourMac's setup page confirms the permission is tied to the app's identity *and location*: it says to run from `/Applications`, and even it needs "remove and re-add" after an app is moved or replaced.
+**Evidence in your docs:** `PERMISSIONS.md` says macOS "may retain a stale code-signature hash after a rebuild" and tells users to remove and re-add Iume, and to run `./scripts/build.sh`. That strongly suggests ad-hoc or inconsistently signed builds. macOS permission is tied to the app's identity *and location*: run from `/Applications`, and use stable persistent code signing.
 
 **Likely root causes (ranked)**
 
@@ -139,7 +137,7 @@ DistributedNotificationCenter.default().addObserver(
 Rules to enforce in code review:
 - **Never** call `AXIsProcessTrustedWithOptions` with the prompt on launch, in `applicationDidBecomeActive`, or in a timer.
 - If trusted state flips to false at runtime, **stop the engine, show the menu bar warning, do not prompt**.
-- If the system says "trusted" but AX calls still return `.apiDisabled`, show a **Restart Engine** button that relaunches Iume. ChainYourMac does the same.
+- If the system says "trusted" but AX calls still return `.apiDisabled`, show a **Restart Engine** button that relaunches Iume.
 
 **Fix 3 — Make the install location predictable**
 - Ship a `.dmg` with an Applications shortcut.
@@ -311,7 +309,7 @@ func tapCallback(_ proxy: CGEventTapProxy, _ type: CGEventType, _ e: CGEvent,
 - Add a watchdog: if no tick was processed for >1 s while the tap should be live, recreate the tap.
 
 **Fix 5 — Stop hijacking all two-finger horizontal scrolls**
-Your doc consumes *every* horizontal-dominant two-finger event system-wide. That breaks horizontal scrolling in spreadsheets, timelines, wide code, Figma, maps, and the Safari/Chrome two-finger back/forward swipe. ChainYourMac avoids this by using **3 or 4 finger swipes** (section 7.4). Make two-finger scrolling optional and gated:
+Your doc consumes *every* horizontal-dominant two-finger event system-wide. That breaks horizontal scrolling in spreadsheets, timelines, wide code, Figma, maps, and the Safari/Chrome two-finger back/forward swipe. Use **3 or 4 finger swipes** (section 7.4) or make two-finger scrolling optional and gated:
 - Only when the pointer is over the wallpaper, a gap between columns, or a column's title bar, **or** while a chosen modifier is held.
 - Off by default.
 
@@ -338,7 +336,7 @@ This covers two symptoms: **(a)** windows never adopted, and **(b)** windows ado
 - `FEASIBILITY_REPORT.md` filters to `kAXWindowSubrole == kAXStandardWindowSubrole`, and `ApplicationDiscovery` finds "eligible running GUI applications via `NSWorkspace`". Both are too strict for real-world apps.
 - Discovery is event-driven from `didLaunchApplication` and `kAXWindowCreatedNotification`. A freshly launched app often isn't AX-ready yet, so the first query fails and you never retry.
 - The doc claims windows on inactive Spaces are found via `CGWindowList`. In practice, `kAXWindowsAttribute` is widely reported to return only windows on the **current** Space, and `CGWindowList` can't give you AX elements.
-- `FEASIBILITY_REPORT.md` says moving windows to `x = -2000` or `x = 4500` is fully supported. Several macOS window managers report that macOS won't let a window go **entirely** off-screen and pulls it back, so they leave ≥1 px visible. ChainYourMac's setup page also says that with side-by-side displays a window "can only slide halfway off" toward the other display. Verify this on your target macOS versions; if true, it explains windows "left behind".
+- `FEASIBILITY_REPORT.md` says moving windows to `x = -2000` or `x = 4500` is fully supported. Several macOS window managers report that macOS won't let a window go **entirely** off-screen and pulls it back, so they leave ≥1 px visible. With side-by-side displays a window "can only slide halfway off" toward the other display on some versions. Verify this on your target macOS versions; if true, it explains windows "left behind".
 
 **Likely root causes (ranked)**
 
@@ -400,7 +398,7 @@ Dedupe windows by `CFEqual` on the `AXUIElement`. Optionally use the widely-used
 
 **Fix 4 — Parking policy for off-viewport windows**
 - Keep ≥1 px of every managed window inside its own display (verify with the park test). If every corner of the display overlaps another display, pick the least-bad corner and log a warning.
-- With vertically arranged displays, parking left/right is clean. With side-by-side displays, **choose a parking corner whose rectangle does not intersect any other display's frame**, and at rest never leave a column straddling an edge that faces a neighbouring display (snap flush). In Mac Setup, recommend vertical arrangement (as ChainYourMac does).
+- With vertically arranged displays, parking left/right is clean. With side-by-side displays, **choose a parking corner whose rectangle does not intersect any other display's frame**, and at rest never leave a column straddling an edge that faces a neighbouring display (snap flush). In Mac Setup, recommend vertical arrangement when possible.
 - Write the park position once, not per frame.
 
 **Fix 5 — No overlap, ever.** In `LayoutEngine`, use the **effective width** = `max(requestedWidth, observedMinWidth)`. After each settle pass, read back the real size and re-pack following columns by the real width. If a window can't be made narrower than its minimum, shift the later columns right; never let columns overlap.
@@ -432,9 +430,9 @@ Your item 6 means these must happen with **zero user action**. Use this as an ac
 
 ---
 
-## 4. Feature parity matrix (ChainYourMac vs Iume, from your docs)
+## 4. Feature implementation matrix
 
-| Feature (ChainYourMac) | Iume per docs | Action | Pri |
+| Target Feature | Iume per docs | Action | Pri |
 |---|---|---|---|
 | Endless strip, nothing overlaps, new windows don't shrink others | ✅ model; 🟡 min-size overlap | Effective-width packing (§2.3 Fix 5) | P1 |
 | New windows open beside the focused one | ❌ | §7.2 | P1 |
@@ -474,10 +472,10 @@ Your item 6 means these must happen with **zero user action**. Use this as an ac
    - *Engine/main thread:* display-link tick reads that target, runs the pure `LayoutEngine`, and **enqueues** writes. It never waits on AX.
    - *Per-app AX queues:* all AX reads/writes and observer callbacks.
 2. **Single source of truth.** `WorkspaceState` is an immutable value (displays → Spaces → strips → columns → windows). Every command is a pure function `(state, command) → state`. Rendering diffs old vs new frames. This makes stacks, tabs, persistence, undo and tests easy.
-3. **Keep one process for now.** ChainYourMac runs a Rust engine as a separate background process. You don't need that to reach parity. If you split later, embed the helper inside the app bundle and **test Accessibility attribution first**: a helper with its own identity needs its own grant and can bring back Issue 4.
+3. **Keep one process for now.** If you split later, embed the helper inside the app bundle and **test Accessibility attribution first**: a helper with its own identity needs its own grant and can bring back Issue 4.
 4. **Supervisor/watchdog** (§7.10).
 5. **Pure `LayoutEngine` stays pure** and gets property tests: no overlaps, total width, gap invariants, snapping, centre modes, stack heights.
-6. **Coordinate helper.** Centralise AppKit (bottom-left origin) ↔ AX (top-left origin, relative to the primary display) conversion in one function, with unit tests including displays arranged above/below/left of the primary. Mixed-up coordinates are a classic source of "windows come back shorter than the screen" bugs (ChainYourMac's own changelog mentions one for a display arranged below the main one).
+6. **Coordinate helper.** Centralise AppKit (bottom-left origin) ↔ AX (top-left origin, relative to the primary display) conversion in one function, with unit tests including displays arranged above/below/left of the primary. Mixed-up coordinates are a classic source of "windows come back shorter than the screen" bugs.
 
 ---
 
@@ -532,7 +530,7 @@ Your item 6 means these must happen with **zero user action**. Use this as an ac
 
 ### 7.4 Trackpad gestures (the "follows your fingers" swipe)
 - **Primary:** 3- or 4-finger horizontal swipe, user-selectable (default 4), tracking fingers 1:1 during the gesture, then spring to the nearest column on release with release velocity.
-- **How:** ChainYourMac's setup page says macOS sends the swipe to the system *and* the app, and the app "can follow a swipe but can't stop macOS from acting on it". That matches **passive reading of raw multitouch data** (for example the private `MultitouchSupport.framework` via `dlopen`: contact-frame callbacks give finger count and positions; compute the centroid's horizontal delta). Treat it as a private, version-fragile API: isolate it behind a `GestureSource` protocol, feature-flag it, and test on each macOS release. I did not verify whether it triggers a permission prompt on macOS 26; test that early.
+- **How:** macOS sends the swipe to the system *and* the app, and the app "can follow a swipe but can't stop macOS from acting on it". That matches **passive reading of raw multitouch data** (for example the private `MultitouchSupport.framework` via `dlopen`: contact-frame callbacks give finger count and positions; compute the centroid's horizontal delta). Treat it as a private, version-fragile API: isolate it behind a `GestureSource` protocol, feature-flag it, and test on each macOS release. I did not verify whether it triggers a permission prompt on macOS 26; test that early.
 - **Consequence:** you can't swallow the system's own gesture, so you must tell users to free that swipe (Mac Setup, §7.5): *System Settings → Trackpad → More Gestures → Swipe between full-screen applications → Off* (or move it to the other finger count), *Swipe between pages → two fingers*, and Three-Finger Drag off if using 3 fingers.
 - **Fallbacks:** keyboard always works; mice don't send multi-finger swipes; optional gated two-finger scroll (§2.2 Fix 5).
 - **Feel:** deltas applied 1:1, rubber band past the ends, snap to nearest column on release, velocity projection for flicks, haptic-free.
@@ -590,7 +588,7 @@ Your item 6 means these must happen with **zero user action**. Use this as an ac
 **Change the defaults.** `⌥ + letter` has three problems:
 1. It types characters (`˙` on US `⌥H`; `@` on German `⌥L`; `ç`, `®`, `å` elsewhere), so a global hotkey blocks typing them.
 2. In macOS 15.0 to 15.1, Carbon `RegisterEventHotKey` with only ⌥ or ⌥⇧ modifiers was restricted (reported to affect sandboxed apps, and reportedly relaxed in 15.2 beta). Not worth depending on.
-3. ChainYourMac made the same move for the same reason: new installs use `⌃⌥`.
+3. Avoid letter collisions: new installs use `⌃⌥`.
 
 **Proposed default set (`⌃⌥` + key, arrows as alternates):**
 
@@ -648,8 +646,8 @@ Your item 6 means these must happen with **zero user action**. Use this as an ac
 | `PERMISSIONS.md` | Says the native prompt appears on first launch | Say it appears when you click *Grant* in onboarding |
 | `TROUBLESHOOTING.md` | "Look at the menu bar icon" only | Add Mac Setup, Rescan Windows, Restart Engine, Reveal Engine Log |
 | `COMPATIBILITY.md` | Stops at macOS 15 | Add **macOS 26 (Tahoe)** and test it; check whether a newer macOS has shipped before you publish this table |
-| `COMPATIBILITY.md` | Says macOS 14 is needed for `SMAppService` | `SMAppService` arrived in macOS 13; ChainYourMac supports macOS 13+ |
-| `COMPATIBILITY.md` | Intel "Supported" | Decide deliberately. ChainYourMac is Apple silicon only, which shrinks the test matrix; Tahoe is the last macOS release to support Intel |
+| `COMPATIBILITY.md` | Says macOS 14 is needed for `SMAppService` | `SMAppService` arrived in macOS 13; support starts from macOS 13+ |
+| `COMPATIBILITY.md` | Intel "Supported" | Decide deliberately. Tahoe is the last macOS release to support Intel |
 
 ---
 

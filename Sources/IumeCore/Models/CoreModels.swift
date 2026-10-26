@@ -35,9 +35,9 @@ public enum LayoutMode: String, CaseIterable, Codable, Sendable {
     case wide = "Wide (Top + Bottom)"
     /// Binary Space Partitioning recursively splits the screen alternating horizontal and vertical boxes.
     case bsp = "Binary Space Partitioning"
-    /// All windows share the screen in a single horizontal row (Amethyst Row parity).
+    /// All windows share the screen in a single horizontal row.
     case row = "Row"
-    /// All windows share the screen in a single vertical column (Amethyst Column parity).
+    /// All windows share the screen in a single vertical column.
     case column = "Column"
     
     /// Whether this mode lays windows out on a horizontal strip that can wrap end-to-start.

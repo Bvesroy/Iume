@@ -37,9 +37,9 @@ public enum WindowBoxAction: String, CaseIterable, Codable, Sendable {
 /// 1. Tiling of all open windows into Grid, Tall, Wide, and BSP box layouts.
 /// 2. Precise calculation of Halves, Quarters, Thirds, and Centered boxes.
 /// 3. Cooperative corner and edge resizing: dynamically resizing adjacent windows that share a border.
-/// 4. Cycle size progressions (Rectangle parity: 1/2 -> 2/3 -> 1/3).
+/// 4. Cycle size progressions (1/2 -> 2/3 -> 1/3).
 /// 5. Balance sizes: distributing screen space equally across open windows.
-/// 6. Screen edge & corner snap zone detection (Rectangle & Loop parity).
+/// 6. Screen edge & corner snap zone detection.
 public struct BoxTilingEngine: Sendable {
     
     public var windowGap: CGFloat
@@ -70,7 +70,7 @@ public struct BoxTilingEngine: Sendable {
         return CGRect(x: x, y: y, width: w, height: h)
     }
     
-    // MARK: - Box Action Calculations (Rectangle & Loop Parity)
+    // MARK: - Box Action Calculations
     
     /// Calculates the target CGRect for an action within the screen's visible frame,
     /// respecting gaps, edge margins, and cycle size fractions.
@@ -169,7 +169,7 @@ public struct BoxTilingEngine: Sendable {
         }
     }
     
-    // MARK: - Cycle Size Logic (Rectangle Parity)
+    // MARK: - Cycle Size Logic
     
     /// Cycles through fractions: 1/2 -> 2/3 -> 1/3 -> 1/4 -> 3/4 -> 1/2
     public static func nextCycleFraction(after currentFraction: CGFloat) -> CGFloat {
@@ -244,7 +244,7 @@ public struct BoxTilingEngine: Sendable {
         }
         let rows = Int(ceil(Double(count) / Double(cols)))
         
-        // Split windows evenly across the rows that exist (Amethyst/AeroSpace parity):
+        // Split windows evenly across the rows that exist:
         // 5 -> 3+2, 7 -> 3+2+2, 10 -> 4+3+3. Every row fills the full width and no cell is left empty.
         var rowCounts = [Int](repeating: count / rows, count: rows)
         for index in 0..<(count % rows) {
@@ -283,7 +283,7 @@ public struct BoxTilingEngine: Sendable {
         return result
     }
     
-    // MARK: - Layout Mode 5: Row (All Side by Side, Amethyst Parity)
+    // MARK: - Layout Mode 5: Row (All Side by Side)
     
     /// Every window shares the screen in a single horizontal row, sized equally.
     public func computeRowLayout(
@@ -316,7 +316,7 @@ public struct BoxTilingEngine: Sendable {
         return result
     }
     
-    // MARK: - Layout Mode 6: Column (All Stacked, Amethyst Parity)
+    // MARK: - Layout Mode 6: Column (All Stacked)
     
     /// Every window is stacked in one vertical column, sized equally.
     public func computeColumnLayout(
@@ -349,7 +349,7 @@ public struct BoxTilingEngine: Sendable {
         return result
     }
     
-    // MARK: - Layout Mode 2: Tall Layout (Main + Stack, Amethyst Parity)
+    // MARK: - Layout Mode 2: Tall Layout (Main + Stack)
     
     /// Computes frames for Tall layout: 1 primary main pane on left, stacked vertical panes on right.
     public func computeTallLayout(
@@ -390,7 +390,7 @@ public struct BoxTilingEngine: Sendable {
         return result
     }
     
-    // MARK: - Layout Mode 3: Wide Layout (Top + Bottom, Amethyst Parity)
+    // MARK: - Layout Mode 3: Wide Layout (Top + Bottom)
     
     /// Computes frames for Wide layout: 1 primary main pane on top, horizontal stacked panes on bottom.
     public func computeWideLayout(
@@ -431,7 +431,7 @@ public struct BoxTilingEngine: Sendable {
         return result
     }
     
-    // MARK: - Layout Mode 4: Binary Space Partitioning (BSP, AeroSpace/Amethyst Parity)
+    // MARK: - Layout Mode 4: Binary Space Partitioning (BSP)
     
     /// Recursively splits screen rectangles alternating horizontally and vertically based on aspect ratio.
     public func computeBSPLayout(
@@ -481,7 +481,7 @@ public struct BoxTilingEngine: Sendable {
         return result
     }
     
-    // MARK: - Cooperative Edge & Corner Resizing (Rectangle & AeroSpace Parity)
+    // MARK: - Cooperative Edge & Corner Resizing
     
     public enum MovedEdge: Sendable {
         case left, right, top, bottom
@@ -730,7 +730,7 @@ public struct BoxTilingEngine: Sendable {
         return updated
     }
     
-    // MARK: - Neighbor-Aware Tiled Resize (AeroSpace Parity)
+    // MARK: - Neighbor-Aware Tiled Resize
     
     public enum ResizeEdge: String, Equatable, Sendable {
         case left, right, top, bottom
@@ -739,7 +739,7 @@ public struct BoxTilingEngine: Sendable {
     /// Resizes one edge of a tiled window and gives (or takes) the same amount of space from
     /// every neighbour that shares the moved boundary.
     ///
-    /// This is the frame-based equivalent of AeroSpace's weight resize: dragging a window edge
+    /// This is the frame-based equivalent of proportional weight resize: dragging a window edge
     /// never overlaps a neighbour and never leaves an accidental hole, because the windows on
     /// the other side of the seam move and resize in lockstep. Returns only the frames that
     /// actually changed, so callers apply a minimal update.
@@ -895,7 +895,7 @@ public struct BoxTilingEngine: Sendable {
         )
     }
     
-    // MARK: - Balance Sizes (AeroSpace & Amethyst Parity)
+    // MARK: - Balance Sizes
     
     /// Balances all open window dimensions equally across the screen.
     public func balanceSizes(
@@ -925,7 +925,7 @@ public struct BoxTilingEngine: Sendable {
         }
     }
     
-    // MARK: - Screen Edge & Corner Drag-to-Snap Detection (Rectangle & Loop Parity)
+    // MARK: - Screen Edge & Corner Drag-to-Snap Detection
     
     public enum ScreenSnapZone: String, Equatable, Sendable {
         case topMaximize
@@ -1001,7 +1001,7 @@ public struct BoxTilingEngine: Sendable {
         return (zone, action, target)
     }
     
-    // MARK: - Priority 1: Loop-Style Radial Menu Direction Picker
+    // MARK: - Radial Menu Direction Picker
     
     public enum RadialDirection: String, CaseIterable, Equatable, Sendable {
         case center = "Center"
@@ -1044,7 +1044,7 @@ public struct BoxTilingEngine: Sendable {
     }
     
     /// Resolves a cursor vector from `origin` to `cursor` into one of 8 compass sectors + center deadzone
-    /// and inner/outer rings (modeled after Loop's radial direction picker).
+    /// and inner/outer rings for directional selection.
     /// - Parameter yAxisIncreasesUpward: Pass `false` for Quartz coordinates (where `y` grows downward)
     ///   or `true` for AppKit `NSEvent.mouseLocation` coordinates (where `y` grows upward).
     public func resolveRadialSelection(
@@ -1272,8 +1272,8 @@ public struct BoxTilingEngine: Sendable {
     
     /// Set of physical edges that a free-resize drag is allowed to move.
     ///
-    /// Rectangle and Loop resize on both axes from a corner, while their free-resize / Pro modes let
-    /// a drag move a single edge. Modelling the edges explicitly is what makes "resize any way I
+    /// Free-resize modes let a drag move a single edge.
+    /// Modelling the edges explicitly is what makes "resize any way I
     /// want" possible without the window jumping height when the user only meant to change width.
     public struct ResizeEdgeSet: OptionSet, Sendable {
         public let rawValue: Int
@@ -1291,7 +1291,7 @@ public struct BoxTilingEngine: Sendable {
     /// Decides which window edges a free-resize drag started at `cursor` should move.
     ///
     /// A grab inside the outer band of one axis moves only that edge, a grab near a corner moves
-    /// both, and a grab in the dead centre falls back to the nearest corner (Rectangle Pro parity)
+    /// both, and a grab in the dead centre falls back to the nearest corner
     /// so a modifier drag anywhere inside a window always does something predictable.
     public func freeResizeEdges(
         forCursorIn frame: CGRect,

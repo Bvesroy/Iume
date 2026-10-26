@@ -2,7 +2,7 @@
 
 > Supersedes `docs/IUME_FIX_PARITY_UPGRADE_INSTRUCTIONS.md`, which was written without reading the source.
 > Every root cause below was traced to code in this repository (paths relative to `Sources/IumeCore/` unless noted).
-> Target behaviour: ChainYourMac / TileMyMac — one endless horizontal strip per display, 1:1 smooth scrolling,
+> Target behaviour: One endless horizontal strip per display, 1:1 smooth scrolling,
 > edges always flush, nothing overlaps, nothing is left behind, only the Accessibility permission.
 
 ---
@@ -119,7 +119,7 @@
 - `endInteractiveSwipe` (lines 597-598) and `settle()` (lines 758-759) call **both** `onSwipeSettled` and `onSettleRequested`, so the snap target is computed twice and the spring is restarted mid-flight.
 - Discrete-wheel settle delay `0.10 + s*0.08` (line 692) is separate from everything else.
 
-### 3.1 Target model (TileMyMac / ChainYourMac feel)
+### 3.1 Target scrolling interaction model
 | Phase | Behaviour |
 |---|---|
 | Finger down / scrolling (trackpad `phase` 1–2) | **1:1 tracking**: offset += delta × sensitivity. Optional light smoothing from the dial (§3.3). Rubber-band past the ends (resistance 0.35, max 80 pt). |
@@ -216,7 +216,7 @@ public struct MotionProfile: Sendable {
    - Off-screen columns are moved so that at most 1 pt remains on the display, on the safe side, and the remaining 1 pt sits inside the edge margin or the gap so it never covers a visible column.
    - If both horizontal sides have neighbours, park at the bottom-right corner (`x = maxX - 1`, `y = maxY - 1`), which never touches a horizontal neighbour.
    - All parked windows of a display share the same spot. That's fine: they're invisible, and none of them overlaps a visible column.
-2. **No threshold jumps**: a column is positioned at its true strip X if *any* part intersects the visible frame; it's parked only when it's **completely** outside. Remove the 35 pt rule. Partially visible columns at the edges are clipped by the screen edge naturally, which is exactly what ChainYourMac shows.
+2. **No threshold jumps**: a column is positioned at its true strip X if *any* part intersects the visible frame; it's parked only when it's **completely** outside. Remove the 35 pt rule. Partially visible columns at the edges are clipped by the screen edge naturally, which creates a clean boundary.
 3. **Respect real minimum widths**:
    - After every size write, read the size back (async, §2.5). If `actual.width > requested.width + 1`, store `column.minWidth = actual.width` and re-layout so the next column starts at the real right edge.
    - Use `AXMinSize` when the app exposes it.
@@ -319,7 +319,7 @@ public struct MotionProfile: Sendable {
 7. **Reconcile loop**: every **3 s** while idle (not moving, mouse not down), run a cheap diff: CG on-screen window list vs registry. Only call AX for windows that are new or gone. Also run immediately after app launch, unhide, wake, display change and Space change.
 8. **Observer**: add the run-loop source to `.commonModes`. Also register `kAXApplicationHiddenNotification` / `kAXApplicationShownNotification` and `kAXTitleChangedNotification` (for tab titles and persistence).
 9. **Electron/Chromium**: keep `AXManualAccessibility`, and additionally set `AXEnhancedUserInterface = false` only for apps that need it (once per pid, §2.4) and **restore it** on quit/stop (`restoreEnhancedUIIfNeeded`, `WindowController.swift:48`, exists but is never called).
-10. **Exclusions**: keep the defaults. Don't exclude `com.apple.SystemSettings` by default; float it instead (ChainYourMac floats its own settings and small utilities, but tiles System Settings if the user wants). Make it a per-app rule.
+10. **Exclusions**: keep the defaults. Don't exclude `com.apple.SystemSettings` by default; float it instead (float own settings and small utilities, but tile System Settings if the user wants). Make it a per-app rule.
 
 **Acceptance**: launch 15 apps (incl. Chrome with 3 windows, VS Code, Slack, Discord, Spotify, Ghostty, Finder 2 windows, Xcode, Calculator, System Settings). Within 1 s each tileable window is in the strip, Calculator floats, nothing is behind the strip, no empty slots. ⌘H on Slack closes its gap; un-hiding puts it back in the same place.
 
@@ -407,7 +407,7 @@ Use one animator for every layout change so scrolling and window changes feel id
 
 ---
 
-## 11. ChainYourMac / TileMyMac feature parity
+## 11. Complete horizontal strip feature parity
 
 Legend: ✅ present and working · 🟡 present but needs the fix noted · ❌ missing
 

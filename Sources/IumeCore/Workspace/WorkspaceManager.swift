@@ -928,7 +928,7 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
             self?.activateWindow(winId, inColumn: colIdx)
         }
         
-        // Focus follows mouse hover requests (Amethyst sloppy focus)
+        // Focus follows mouse hover requests (Sloppy focus)
         InteractionManager.shared.onFocusFollowsMouseTarget = { [weak self] winId in
             guard let self = self, self.settings.isEnabled else { return }
             guard let ws = self.workspaces[self.activeDisplayId] else { return }
@@ -1444,7 +1444,7 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
                 }
                 return ws.columns.isEmpty ? nil : (ws.columns.count - 1)
             }()
-            // New windows must open immediately to the right of the focused strip — explicit parity with tilemymac/chainyourmac.
+            // New windows must open immediately to the right of the focused strip.
             let newColIdx = layoutEngine.insertWindow(
                 windowId,
                 into: &ws.columns,
@@ -3312,7 +3312,7 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
             }
         }
         
-        // Edge Sliver Clamping and CGS Z-Ordering (TileMyMac & ChainYourMac Parity)
+        // Edge Sliver Clamping and CGS Z-Ordering
         let writtenFrames = controller.applyStripFrames(
             placements: placements,
             visibleFrame: vis,
@@ -3403,7 +3403,7 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
         guard let winId = registry.findWindowId(matchingAXElement: element),
               let observedFrame = discovery.copyFrame(element) else { return }
         
-        // Check current mouse state for active interactions (Amethyst architecture)
+        // Check current mouse state for active interactions
         switch mouseStateKeeper.state {
         case let .moving(activeId, _):
             if activeId != winId { return } // Lock out secondary neighbor notifications while dragging activeId
@@ -3418,8 +3418,8 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
             return
         }
         
-        // Check mouse interaction state (Amethyst & Rectangle parity: only treat as manual window
-        // manipulation if the mouse is actively dragging, or within dragRaceThreshold after release)
+        // Check mouse interaction state: only treat as manual window
+        // manipulation if the mouse is actively dragging, or within dragRaceThreshold after release
         switch mouseStateKeeper.state {
         case .dragging, .moving, .resizing:
             let expectedWidth = workspaces[activeDisplayId]?.columns.first(where: { $0.windowIds.contains(winId) })?.width ?? observedFrame.width
@@ -3914,7 +3914,7 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
     }
 }
 
-// MARK: - MouseStateKeeperDelegate (Amethyst Parity)
+// MARK: - MouseStateKeeperDelegate
 
 extension WorkspaceManager {
     public func mouseStateDidBeginDragging(windowId: WindowId) {

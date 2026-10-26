@@ -191,7 +191,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added smooth animated frame transitions for `FocusBorderOverlay` using `NSAnimationContext.runAnimationGroup` (ease-out curve, 0.22s duration).
   - Integrated `centerMode` animated camera shifts when navigating or changing window focus.
 
-## [2.0.0] - 2026-10-15 (Major Architectural Remediation & Complete Feature Parity with ChainYourMac and TileMyMac)
+## [2.0.0] - 2026-10-15 (Major Architectural Remediation & Complete Feature Parity Upgrade)
 
 ### Added & Upgraded
 - **Zero-Overlap Window Layout & Safe Offscreen Parking**:
@@ -219,7 +219,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Bridged private macOS `MultitouchSupport.framework` (`MTDeviceCreateList`, `MTRegisterContactFrameCallback`) to track hardware trackpad contact centroids directly.
   - 3- and 4-finger swipes glide 1:1 with finger centroids across the continuous strip without requiring modifier keys.
   - Preserved optional modifier-gated 2-finger scrolling (`withOption`, `withControl`, `always`, `seamlessHorizontal`).
-- **Symmetric Edge Sliver Clamping & CGS Z-Ordering (Paneru Parity)**:
+- **Symmetric Edge Sliver Clamping & CGS Z-Ordering**:
   - Eliminated the v1.0.2 negative-X offscreen teleportation regression across the right viewport edge.
   - Symmetrical 3.0pt edge sliver clamping (`sliverWidth = 3.0`, `sliverHeight = 12.0`) tucks parked offscreen windows at `visibleFrame.maxY - sliverHeight`, preventing WindowServer from clamping windows or spilling pixels onto adjacent monitors.
   - Implemented dynamic SkyLight private window ordering via `_CGSDefaultConnection` and `CGSOrderWindow`: visible strip columns are explicitly raised above background apps and offscreen slivers are pushed below.

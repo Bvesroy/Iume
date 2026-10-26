@@ -9,8 +9,7 @@ public protocol MouseStateKeeperDelegate: AnyObject {
     func mouseStateDidEndResizing(windowId: WindowId, initialFrame: CGRect)
 }
 
-/// Represents the explicit state of mouse interaction for window management operations,
-/// modeled after Amethyst's proven MouseStateKeeper architecture.
+/// Represents the explicit state of mouse interaction for window management operations.
 public enum MouseInteractionState: Equatable, Sendable {
     case pointing
     case clicking(atTime: Date)
@@ -26,7 +25,7 @@ public enum MouseInteractionState: Equatable, Sendable {
 @MainActor
 public final class MouseStateKeeper {
     
-    /// Threshold to tolerate delayed AX notifications arriving after physical mouse release (Amethyst parity: 150-200ms).
+    /// Threshold to tolerate delayed AX notifications arriving after physical mouse release.
     public let dragRaceThresholdSeconds: TimeInterval = 0.20
     
     public private(set) var state: MouseInteractionState = .pointing

@@ -1,8 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Translucent on-screen HUD pill displaying the active layout mode, box action, or resize feedback
-/// (modeled after Loop & Rectangle visual HUD indicators).
+/// Translucent on-screen HUD pill displaying the active layout mode, box action, or resize feedback.
 @MainActor
 public final class BoxPreviewHUDController: ObservableObject {
     public static let shared = BoxPreviewHUDController()

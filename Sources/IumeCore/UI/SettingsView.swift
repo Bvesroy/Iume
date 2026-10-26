@@ -442,7 +442,7 @@ public struct SettingsView: View {
                 .padding(16)
                 .background(settingsCardBackground)
                 
-                // Multi-Monitor Per-Display Management Card (ChainYourMac Parity)
+                // Multi-Monitor Per-Display Management Card
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Text("Displays (One Strip Per Display)")

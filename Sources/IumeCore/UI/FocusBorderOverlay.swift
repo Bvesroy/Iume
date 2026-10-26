@@ -1,8 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Floating border overlay highlighting the currently focused window on the strip,
-/// directly inspired by ChainYourMac's focus border feature.
+/// Floating border overlay highlighting the currently focused window on the strip.
 @MainActor
 public final class FocusBorderOverlay {
     public static let shared = FocusBorderOverlay()

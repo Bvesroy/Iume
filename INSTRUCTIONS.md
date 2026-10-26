@@ -1,12 +1,12 @@
-# Iume — Complete Engineering Fixes, Upgrades & ChainYourMac / TileMyMac Parity Guide
+# Iume — Complete Engineering Fixes, Upgrades & Feature Parity Guide
 
-This document provides the complete root-cause analysis, concrete code fixes, system configuration solutions, and feature-parity architecture mapping **Iume** against [ChainYourMac](https://chainyourmac.com/) and [TileMyMac](https://tilemymac.app/) (and its underlying [Paneru](https://github.com/karinushka/paneru) engine).
+This document provides the complete root-cause analysis, concrete code fixes, system configuration solutions, and feature architecture mapping for **Iume**.
 
 ---
 
 ## 1. Root-Cause Analysis & Fixes for Reported Issues
 
-### Issue 1 & 3: Scrolling Is Laggy & Not Smooth Like TileMyMac / ChainYourMac
+### Issue 1 & 3: Scrolling Lag & Smoothness Tuning
 
 #### Root Causes Identified
 1. **Premature `.app` Gesture Latching on `phase == 1` (`ScrollController.swift`)**:
@@ -113,7 +113,7 @@ This document provides the complete root-cause analysis, concrete code fixes, sy
 
 #### Fixes Applied
 - **3×12pt Bottom-Corner Sliver Parking (`Sources/IumeCore/Controller/WindowController.swift`)**:
-  - Matching the proven [Paneru](https://github.com/karinushka/paneru) / [TileMyMac](https://tilemymac.app/) architecture, `WindowController.applyStripFrames` parks offscreen left windows at:
+  - In `WindowController.applyStripFrames`, offscreen left windows are parked at:
     ```swift
     clampedOrigin.x = visibleFrame.minX - rawRect.width + sliverWidth // 3pt sliver
     clampedOrigin.y = max(rawRect.origin.y, visibleFrame.maxY - sliverHeight) // 12pt corner
@@ -175,9 +175,9 @@ This document provides the complete root-cause analysis, concrete code fixes, sy
 
 ---
 
-## 2. Complete Feature Parity Matrix: ChainYourMac & TileMyMac vs. Iume
+## 2. Complete Feature Implementation Matrix
 
-| Feature ([ChainYourMac](https://chainyourmac.com/) / [TileMyMac](https://tilemymac.app/)) | Status in Iume | Iume Implementation File(s) & Details |
+| Target Feature | Status in Iume | Iume Implementation File(s) & Details |
 | :--- | :--- | :--- |
 | **Endless Horizontal Strip (PaperWM / niri model)** | ✅ Implemented | `LayoutEngine.swift`, `WorkspaceManager.swift` — Windows sit side-by-side in columns; opening a new window never shrinks existing ones. |
 | **New Windows Open Beside Focused One** | ✅ Implemented & Fixed | `WorkspaceManager.swift` (`insertWindow` with `.afterFocused` + `syncFocusToActivatedApp`) — Slots at `focusedColumnIndex + 1` and glides into view. |

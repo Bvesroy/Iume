@@ -352,7 +352,7 @@ struct MagneticWindowEngineTests {
         #expect(chained[win2]?.origin.x == 1112)
     }
     
-    @Test("MouseStateKeeper state transitions and delayed AX event handling (Amethyst parity)")
+    @Test("MouseStateKeeper state transitions and delayed AX event handling")
     func testMouseStateKeeperLifecycle() {
         final class TestDelegate: MouseStateKeeperDelegate {
             var didBegin = false

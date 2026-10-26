@@ -107,7 +107,7 @@ public final class AppAXContext: @unchecked Sendable {
         // applying a frame batch, and a slow app would stall the whole strip.
     }
 
-    /// Rectangle/Amethyst optimization: If an app has AXEnhancedUserInterface = true,
+    /// Accessibility optimization: If an app has AXEnhancedUserInterface = true,
     /// macOS animates programmatic moves and runs slow synchronous tree walks.
     /// Setting it to false eliminates stutter during continuous scrolling.
     ///
@@ -1304,7 +1304,7 @@ public final class WindowController: @unchecked Sendable {
         _ = setPosition(element: element, position: roundedFrame.origin, windowId: windowId)
         let okSize = setSize(element: element, size: roundedFrame.size)
 
-        // Amethyst "Window Peeking": query actual size in case app enforces minimum bounds (e.g. Xcode, Spotify, Terminal)
+        // Query actual size in case app enforces minimum bounds (e.g. Xcode, Spotify, Terminal)
         var finalSize = roundedFrame.size
         var actualSizeVal: AnyObject?
         if transport.copyAttributeValue(element, attribute: kAXSizeAttribute as CFString, value: &actualSizeVal) == .success,

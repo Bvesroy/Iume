@@ -108,9 +108,7 @@ A common flaw in window managers is the Accessibility notification loop:
 
 ---
 
-## 5. Reverse-Engineered 2-Finger Endless Scrolling Architecture
-
-*(Primary motivation and mechanics derived from reverse engineering TileMyMac, ChainYourMac, and the Paneru engine)*
+## 5. 2-Finger Endless Scrolling Architecture
 
 ### 5.1 The 2-Finger Gesture Interception Pipeline
 On macOS, trackpad gestures arrive through CoreGraphics as continuous `scrollWheel` events (`CGEventType.scrollWheel`). Rather than requiring awkward modifier keys, Iume uses **Smart Horizontal Intent Detection**:

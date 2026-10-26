@@ -4,8 +4,8 @@ import CoreGraphics
 import ApplicationServices
 @testable import IumeCore
 
-@Suite("Amethyst Feature Parity & System Hardening Tests", .serialized)
-struct AmethystFeatureParityTests {
+@Suite("Layout System Hardening Tests", .serialized)
+struct SystemHardeningTests {
     
     @Test("Smart Window Margins collapses margin when single column is tiled")
     @MainActor
@@ -114,9 +114,9 @@ struct AmethystFeatureParityTests {
         #expect(!WindowClassifier.shouldFloatSmallWindow(size: smallSize, threshold: threshold, isEnabled: false))
     }
     
-    @Test("ShortcutManager registers all Amethyst-parity actions")
+    @Test("ShortcutManager registers all navigation actions")
     @MainActor
-    func testAmethystShortcuts() {
+    func testNavigationShortcuts() {
         let manager = ShortcutManager.shared
         manager.registerDefaultShortcuts()
         

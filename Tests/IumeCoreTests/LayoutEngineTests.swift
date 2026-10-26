@@ -269,7 +269,7 @@ struct LayoutEngineTests {
         #expect(idx2 == 2)
     }
     
-    @Test("Cycle column width presets (TileMyMac / ChainYourMac style)")
+    @Test("Cycle column width presets (Width cycling progression)")
     func testCycleColumnWidth() {
         var cols = [
             WindowColumn(windowIds: [WindowId(pid: 1, rawId: 1)], width: 500) // 50% of 1000
