@@ -154,7 +154,7 @@ public final class WindowWriter: @unchecked Sendable {
     private enum RequestType {
         case position(CGPoint, size: CGSize?)
         case frame(CGRect)
-        case settle(CGRect)
+        case settle(CGRect, visibleFrame: CGRect?)
     }
 
     private struct WriteRequest {
@@ -269,7 +269,7 @@ public final class WindowWriter: @unchecked Sendable {
         }
     }
 
-    public func settleFrameAsync(_ frame: CGRect) {
+    public func settleFrameAsync(_ frame: CGRect, visibleFrame: CGRect? = nil) {
         lock.lock()
         guard !isInvalidated else {
             lock.unlock()
@@ -281,7 +281,7 @@ public final class WindowWriter: @unchecked Sendable {
         _state.generation += 1
         let gen = _state.generation
         _state.desiredFrame = frame
-        pendingRequest = WriteRequest(type: .settle(frame), frame: frame, generation: gen)
+        pendingRequest = WriteRequest(type: .settle(frame, visibleFrame: visibleFrame), frame: frame, generation: gen)
 
         let shouldStart = !isDraining
         isDraining = true
@@ -320,8 +320,8 @@ public final class WindowWriter: @unchecked Sendable {
                 executePosition(pt, req: req)
             case .frame(let frame):
                 executeFrame(frame, req: req)
-            case .settle(let frame):
-                executeSettle(frame, req: req)
+            case .settle(let frame, let visibleFrame):
+                executeSettle(frame, visibleFrame: visibleFrame, req: req)
             }
 
             lock.lock()
@@ -361,7 +361,7 @@ public final class WindowWriter: @unchecked Sendable {
         }
     }
 
-    private func executeSettle(_ expected: CGRect, req: WriteRequest) {
+    private func executeSettle(_ expected: CGRect, visibleFrame: CGRect? = nil, req: WriteRequest) {
         let (settleSignpost, settleState) = IumeSignpost.beginWindowSettle(pid: windowId.pid, windowId: windowId.rawId)
 
         // 1. Unconditional authoritative write on settle
@@ -437,11 +437,64 @@ public final class WindowWriter: @unchecked Sendable {
             return
         }
 
-        // 4. Check if origin is verified but size was constrained by app (e.g. Terminal character cell grid or min/max size)
-        let finalActual = readFrame() ?? actual
-        let originMatches = abs(finalActual.origin.x - expected.origin.x) <= tolerance + 1.0 &&
-                            abs(finalActual.origin.y - expected.origin.y) <= tolerance + 1.0
-        let isAppConstrainedSize = originMatches && (repairErr == .success || writeErr == .success)
+        var finalActual = readFrame() ?? actual
+
+        // 4. Special authoritative bounds handling for Terminal.app (character cell constraints)
+        let isTerminal = NSRunningApplication(processIdentifier: windowId.pid)?.bundleIdentifier == "com.apple.Terminal"
+        if isTerminal && !frameMatches(finalActual, expected, tolerance: tolerance) {
+            let okScript = WindowController.applyTerminalBounds(cgWindowId: windowId.rawId, bounds: expected)
+            if okScript, let postScriptActual = readFrame() {
+                finalActual = postScriptActual
+                if frameMatches(postScriptActual, expected, tolerance: tolerance) {
+                    IumeSignpost.endWindowSettle(id: settleSignpost, state: settleState, pid: windowId.pid, windowId: windowId.rawId, success: true)
+                    Diagnostics.shared.log(level: "INFO", category: "AXReliability", message: "Window \(windowId) settled to exact bounds via Terminal bounds control: \(postScriptActual)")
+                    recordVerified(postScriptActual, for: req)
+                    return
+                }
+            }
+        }
+
+        // 5. Edge-snapping alignment for discrete character grid or min/max constrained windows
+        if let vis = visibleFrame {
+            var adjustedOrigin = finalActual.origin
+            var didAdjust = false
+
+            // Snap bottom edge flush to visibleFrame.maxY if expected to touch bottom
+            if expected.maxY >= vis.maxY - 2.0 && finalActual.height < expected.height {
+                adjustedOrigin.y = vis.maxY - finalActual.height
+                didAdjust = true
+            }
+            // Snap right edge flush to visibleFrame.maxX if expected to touch right
+            if expected.maxX >= vis.maxX - 2.0 && finalActual.width < expected.width {
+                adjustedOrigin.x = vis.maxX - finalActual.width
+                didAdjust = true
+            }
+            // Snap left edge flush to visibleFrame.minX if expected to touch left
+            if expected.origin.x <= vis.minX + 2.0 && abs(finalActual.origin.x - vis.minX) > 0.5 {
+                adjustedOrigin.x = vis.minX
+                didAdjust = true
+            }
+            // Snap top edge flush to visibleFrame.minY if expected to touch top
+            if expected.origin.y <= vis.minY + 2.0 && abs(finalActual.origin.y - vis.minY) > 0.5 {
+                adjustedOrigin.y = vis.minY
+                didAdjust = true
+            }
+
+            if didAdjust {
+                var pt = CGPoint(x: round(adjustedOrigin.x), y: round(adjustedOrigin.y))
+                if let pv = AXValueCreate(.cgPoint, &pt) {
+                    _ = transport.setAttributeValue(ax, attribute: kAXPositionAttribute as CFString, value: pv)
+                }
+                if let alignedFrame = readFrame() {
+                    finalActual = alignedFrame
+                }
+            }
+        }
+
+        // 6. Check if origin is verified but size was constrained by app (e.g. Terminal character cell grid or min/max size)
+        let originMatches = abs(finalActual.origin.x - expected.origin.x) <= tolerance + 2.0 &&
+                            abs(finalActual.origin.y - expected.origin.y) <= tolerance + 2.0
+        let isAppConstrainedSize = originMatches && (repairErr == .success || writeErr == .success || isTerminal)
 
         if isAppConstrainedSize {
             // App accepted position but constrained size to character grid or minimum window dimensions.
@@ -452,7 +505,7 @@ public final class WindowWriter: @unchecked Sendable {
             return
         }
 
-        // 5. Record unresolved mismatch (bounded: one retry only)
+        // 7. Record unresolved mismatch (bounded: one retry only)
         IumeSignpost.endWindowSettle(id: settleSignpost, state: settleState, pid: windowId.pid, windowId: windowId.rawId, success: false)
         let currentActual = finalActual
         IumeSignpost.recordPersistentMismatch(pid: windowId.pid, windowId: windowId.rawId, expected: expected, actual: currentActual)
@@ -659,6 +712,32 @@ public final class WindowController: @unchecked Sendable {
     /// Callback invoked when a window's authoritative or app-quantized physical frame has been verified.
     public var onWindowFrameVerified: (@Sendable (WindowId, CGRect) -> Void)?
 
+    /// Authoritatively sets the window frame of a Terminal.app window via AppleScript bounds,
+    /// bypassing AppKit accessibility character-cell height and width quantization so it aligns flush to strip edges.
+    @discardableResult
+    public static func applyTerminalBounds(cgWindowId: UInt64, bounds: CGRect) -> Bool {
+        guard cgWindowId > 0 else { return false }
+        let minX = Int(round(bounds.minX))
+        let minY = Int(round(bounds.minY))
+        let maxX = Int(round(bounds.maxX))
+        let maxY = Int(round(bounds.maxY))
+        let scriptSource = """
+        tell application "Terminal"
+            repeat with w in windows
+                if id of w is \(cgWindowId) then
+                    set bounds of w to {\(minX), \(minY), \(maxX), \(maxY)}
+                    return true
+                end if
+            end repeat
+            return false
+        end tell
+        """
+        guard let script = NSAppleScript(source: scriptSource) else { return false }
+        var error: NSDictionary?
+        let result = script.executeAndReturnError(&error)
+        return error == nil && result.booleanValue
+    }
+
     public func recordAppliedFrame(_ frame: CGRect, for windowId: WindowId) {
         lock.lock()
         var st = windowStates[windowId] ?? WindowFrameState()
@@ -821,7 +900,8 @@ public final class WindowController: @unchecked Sendable {
                 self.settleFrameAsync(
                     element: placement.axElement,
                     frame: roundedFrame,
-                    windowId: placement.windowId
+                    windowId: placement.windowId,
+                    visibleFrame: visibleFrame
                 )
                 writtenFrames[placement.windowId] = roundedFrame
             }
@@ -1129,7 +1209,7 @@ public final class WindowController: @unchecked Sendable {
         return true
     }
 
-    public func settleFrameAsync(element: AXUIElement, frame: CGRect, windowId: WindowId) {
+    public func settleFrameAsync(element: AXUIElement, frame: CGRect, windowId: WindowId, visibleFrame: CGRect? = nil) {
         let rounded = CGRect(
             x: round(frame.origin.x),
             y: round(frame.origin.y),
@@ -1145,7 +1225,7 @@ public final class WindowController: @unchecked Sendable {
         lock.unlock()
 
         let writer = getOrCreateWriter(windowId: windowId, pid: windowId.pid, element: element)
-        writer.settleFrameAsync(rounded)
+        writer.settleFrameAsync(rounded, visibleFrame: visibleFrame)
     }
 
     public func setFrameAsync(element: AXUIElement, frame: CGRect, windowId: WindowId) {
@@ -1232,6 +1312,23 @@ public final class WindowController: @unchecked Sendable {
             var actual = CGSize.zero
             if AXValueGetValue(val, .cgSize, &actual) && actual.width > 0 && actual.height > 0 {
                 finalSize = actual
+            }
+        }
+
+        // If Terminal clamped size, force exact bounds via AppleScript
+        if let id = windowId, id.pid > 0,
+           (abs(finalSize.width - roundedFrame.size.width) > 0.5 || abs(finalSize.height - roundedFrame.size.height) > 0.5) {
+            if NSRunningApplication(processIdentifier: id.pid)?.bundleIdentifier == "com.apple.Terminal" {
+                if WindowController.applyTerminalBounds(cgWindowId: id.rawId, bounds: roundedFrame) {
+                    var scriptSizeVal: AnyObject?
+                    if transport.copyAttributeValue(element, attribute: kAXSizeAttribute as CFString, value: &scriptSizeVal) == .success,
+                       let val = axValue(from: scriptSizeVal) {
+                        var actual = CGSize.zero
+                        if AXValueGetValue(val, .cgSize, &actual) && actual.width > 0 && actual.height > 0 {
+                            finalSize = actual
+                        }
+                    }
+                }
             }
         }
 

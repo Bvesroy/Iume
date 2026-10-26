@@ -3252,11 +3252,15 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
             }
         }
         
-        // Pre-layout sync: ensure single-window columns reflect their verified physical width (e.g. Terminal character quantization)
+        // Pre-layout sync: ensure single-window columns reflect their verified physical width
         var effectiveWorkspace = workspace
         var columnsAdjusted = false
         for (idx, col) in effectiveWorkspace.columns.enumerated() where col.windowIds.count == 1 {
             let winId = col.windowIds[0]
+            if let bundleId = NSRunningApplication(processIdentifier: winId.pid)?.bundleIdentifier,
+               bundleId == "com.apple.Terminal" {
+                continue
+            }
             if let verifiedWidth = controller.frameState(for: winId)?.verifiedFrame?.width,
                verifiedWidth >= 200.0 {
                 let diff = abs(verifiedWidth - col.width)
@@ -3470,6 +3474,10 @@ public final class WorkspaceManager: ObservableObject, MouseStateKeeperDelegate 
         for (dispId, var ws) in workspaces {
             guard let colIdx = ws.columns.firstIndex(where: { $0.windowIds.contains(winId) }) else { continue }
             guard ws.columns[colIdx].windowIds.count == 1 else { continue }
+            if let bundleId = NSRunningApplication(processIdentifier: winId.pid)?.bundleIdentifier,
+               bundleId == "com.apple.Terminal" {
+                continue
+            }
             
             let col = ws.columns[colIdx]
             let widthDiff = abs(verifiedFrame.width - col.width)
